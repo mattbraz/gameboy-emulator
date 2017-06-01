@@ -26,7 +26,7 @@ int ppu_frames = 0;
  *  no LYC recheck when 153/0 goes to 0 (it seems)
  *  then a normal line of LY=0
  *  Do we still get "virtual" interrupts even though the mode doesnt change in STAT
-*/
+ */
 
 void lcd_set_stat_mode(struct gameboy *gb, uint8_t mode) {
     //gb->mem[STAT] &= ~0x3;

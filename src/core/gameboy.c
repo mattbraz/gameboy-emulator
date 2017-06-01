@@ -6,6 +6,8 @@
 #include "gameboy.h"
 #include "cpu.h"
 
+#include <pthread.h>
+
 extern uint8_t boot_image[];
 
 int boot = 1;
@@ -13,6 +15,48 @@ int logging = 0;
 int paused = 0;
 
 int CLOCKS_PER_SDL_FRAME = 70224;
+
+/* Public interface */
+
+void gb_run(struct gameboy *gb) {
+
+    pthread_t self = pthread_self();
+    unsigned long tid = (unsigned long) self;
+
+    paused = 0;
+    int i = 0;
+    while(!paused) {
+        gb_main_new(gb);
+        //sdl_main(gb);
+        if((i++ % 100) == 0)
+            //printf("thread id: %d", tid);
+            printf("%lu libgb.gb_run - clocks %d\n",tid, gb->clocks_total);
+    }
+}
+
+void gb_run_clocks(struct gameboy *gb, unsigned int clocks) {}
+
+void gb_run_ops(struct gameboy *gb, unsigned int ops) {
+    while (ops--) {
+        gb_once(gb);
+    }
+    //sdl_main(gb);   // FIXME: this is not right
+}
+void gb_run_frames(struct gameboy *gb, unsigned int frames) {
+    while (frames--) {
+        gb_main_new(gb);
+        //sdl_main(gb);
+    }
+}
+
+void gb_stop(struct gameboy *gb) {
+    paused = 1;
+}
+void gb_close(struct gameboy *gb) {
+    sdl_finish(gb);
+}
+
+/* ------------------------------ */
 
 void gb_main_new(struct gameboy *gb) {
     if (paused) return;
@@ -24,6 +68,8 @@ void gb_main_new(struct gameboy *gb) {
 
 void gb_once(struct gameboy *gb) {
     struct op op;
+
+    if (paused) return;
 
     gb_process_interrupts(gb);
 

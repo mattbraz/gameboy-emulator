@@ -2,15 +2,20 @@
 #include "SDL2/SDL.h"
 #include "gameboy.h"
 
+#include <pthread.h>
+
 #define WHITE       0xFFE0F8D0
 #define LIGHT_GRAY  0xFF88C070
 #define DARK_GRAY   0xFF346856
 #define BLACK       0xFF081820
 #define TRANSPARENT 0x00000000
 
-int sdl_main();
-void sdl_init(struct gameboy *gb, char *rom_file);
-void sdl_finish();
+#define xWHITE       0xE0F8D0
+#define xLIGHT_GRAY  0x88C070
+#define xDARK_GRAY   0x346856
+#define xBLACK       0x081820
+uint8_t *pix = NULL;
+
 void sdl_render();
 void sdl_apu_callback(void *userdata, Uint8 *buf, int len);
 
@@ -19,6 +24,7 @@ extern int paused;
 extern int ppu_frames;
 extern int CLOCKS_PER_SDL_FRAME;
 extern uint8_t screen[SCREEN_WIDTH][SCREEN_HEIGHT];
+
 extern uint8_t apu_buffer[4][SAMPLES_PER_CALLBACK];
 
 static unsigned int millis = 0;
@@ -41,8 +47,97 @@ SDL_Surface *surface = NULL;
 SDL_Texture *texture = NULL;
 SDL_AudioSpec *hardware_spec = NULL;
 
+void sdl_init_window(struct gameboy *gb, const char *file, long window_id) {
 
-void sdl_init(struct gameboy *gb, char *file) {
+    if (SDL_Init(0) != 0) {
+        printf("Error initializing SDL:  %s\n", SDL_GetError());
+        exit(1);
+    }
+
+    if (SDL_VideoInit(NULL) != 0) {
+        printf("Error initializing SDL video:  %s\n", SDL_GetError());
+        exit(2);
+    }
+    printf("SDL 1\n");
+
+    window = SDL_CreateWindowFrom((void *) window_id);
+    if(window == NULL) {
+        printf( "SDL Error: %s\n", SDL_GetError());
+        exit(1);
+    }
+    printf("SDL 2\n");
+
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if(renderer == NULL) {
+        printf( "SDL Error: %s\n", SDL_GetError());
+        exit(1);
+    }
+        printf("SDL 3\n");
+
+    surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    if(surface == NULL) {
+        printf( "SDL Error: %s\n", SDL_GetError());
+        exit(1);
+    }
+        printf("SDL 4\n");
+
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+    if(texture == NULL) {
+        printf( "SDL Error: %s\n", SDL_GetError());
+        exit(1);
+    }
+    printf("SDL 5\n");
+
+    /* Audio Setup */
+    SDL_AudioSpec *desired;
+    desired = (SDL_AudioSpec*) malloc(sizeof(SDL_AudioSpec));
+    hardware_spec = (SDL_AudioSpec*) malloc(sizeof(SDL_AudioSpec));
+    if(desired == NULL || hardware_spec == NULL) {
+        printf( "malloc error in AudioSpec\n");
+        exit(1);
+    }
+
+    desired->freq = SAMPLES_PER_SEC;
+    desired->format = AUDIO_U8;
+    desired->channels = 1;
+    desired->samples = SAMPLES_PER_CALLBACK;
+    desired->callback = sdl_apu_callback;
+    desired->userdata = gb;
+    
+    if (SDL_OpenAudio(desired, hardware_spec) < 0) {
+        fprintf(stderr, "Couldn't open SDL audio: %s\n", SDL_GetError());
+        exit(1);
+    }
+    free(desired);
+    desired = NULL;
+
+    printf("req: freq %d samples %d\n",SAMPLES_PER_SEC,SAMPLES_PER_CALLBACK);
+    printf("got: freq %d samples %d\n",hardware_spec->freq, hardware_spec->samples);
+
+    callbacks_per_sec = hardware_spec->freq / hardware_spec->samples;
+    clocks_per_call = DMG_MHZ / callbacks_per_sec;
+    clocks_per_sample = clocks_per_call / hardware_spec->samples;
+    
+    printf("callbacks_per_sec %d\n",callbacks_per_sec);
+    printf("clocks_per_call %d\n",clocks_per_call);
+    printf("clocks_per_sample %d\n",clocks_per_sample);
+    
+    pthread_t self = pthread_self();
+    unsigned long tid = (unsigned long) self;
+    printf("%lu sdl_init\n",tid);
+
+
+    SDL_PauseAudio(0);
+
+    printf("SDL 6\n");
+
+    SDL_SetWindowTitle(window, file);
+    printf("SDL 7\n");
+
+    //rom_file = file;
+}
+
+void sdl_init(struct gameboy *gb, const char *file) {
     window = SDL_CreateWindow("GAMEBOY", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, SDL_WINDOW_SHOWN);
     if(window == NULL) {
         printf( "SDL Error: %s\n", SDL_GetError());
@@ -101,8 +196,67 @@ void sdl_init(struct gameboy *gb, char *file) {
     printf("clocks_per_call %d\n",clocks_per_call);
     printf("clocks_per_sample %d\n",clocks_per_sample);
     
+    pthread_t self = pthread_self();
+    unsigned long tid = (unsigned long) self;
+    printf("%lu sdl_init\n",tid);
+
+
     SDL_PauseAudio(0);
-    rom_file = file;
+
+
+    SDL_SetWindowTitle(window, file);
+
+    //rom_file = file;
+}
+
+
+void sdl_init_audio(struct gameboy *gb) {
+
+    /* Audio Setup */
+    SDL_AudioSpec *desired;
+    desired = (SDL_AudioSpec*) malloc(sizeof(SDL_AudioSpec));
+    hardware_spec = (SDL_AudioSpec*) malloc(sizeof(SDL_AudioSpec));
+    if(desired == NULL || hardware_spec == NULL) {
+        printf( "malloc error in AudioSpec\n");
+        exit(1);
+    }
+
+    desired->freq = SAMPLES_PER_SEC;
+    desired->format = AUDIO_U8;
+    desired->channels = 1;
+    desired->samples = SAMPLES_PER_CALLBACK;
+    desired->callback = sdl_apu_callback;
+    desired->userdata = gb;
+    
+    if (SDL_OpenAudio(desired, hardware_spec) < 0) {
+        fprintf(stderr, "Couldn't open SDL audio: %s\n", SDL_GetError());
+        exit(1);
+    }
+    free(desired);
+    desired = NULL;
+
+    printf("req: freq %d samples %d\n",SAMPLES_PER_SEC,SAMPLES_PER_CALLBACK);
+    printf("got: freq %d samples %d\n",hardware_spec->freq, hardware_spec->samples);
+
+    callbacks_per_sec = hardware_spec->freq / hardware_spec->samples;
+    clocks_per_call = DMG_MHZ / callbacks_per_sec;
+    clocks_per_sample = clocks_per_call / hardware_spec->samples;
+    
+    printf("callbacks_per_sec %d\n",callbacks_per_sec);
+    printf("clocks_per_call %d\n",clocks_per_call);
+    printf("clocks_per_sample %d\n",clocks_per_sample);
+    
+    pthread_t self = pthread_self();
+    unsigned long tid = (unsigned long) self;
+    printf("%lu sdl_init\n",tid);
+
+
+    SDL_PauseAudio(0);
+
+
+    //SDL_SetWindowTitle(window, file);
+
+    //rom_file = file;
 }
 
 void sdl_finish(struct gameboy *gb) {
@@ -118,8 +272,16 @@ void sdl_finish(struct gameboy *gb) {
     gb_free(gb);
 }
 
+// removing the event handling in SDL results in the WX GUI being totally frozen (swirly mouse anim).
+// something about procesing the events in SDL allows the wx thread to run... ?
 
-int sdl_main(struct gameboy *gb) {
+// calling sdl_events() from python with wxCallAfter() seemed to work ok but was slow and seemed to miss key presses
+// handling key presses in wx and passing to gb worked.
+// wx cannot get key presses from the SDL window though
+
+// why does letting the gb_run() freeze the main thread?  something to do with the GIL?
+
+void sdl_events(struct gameboy *gb) {
     SDL_Event e;
     while(SDL_PollEvent(&e) != 0) {
         if(e.type == SDL_QUIT) {
@@ -232,6 +394,9 @@ int sdl_main(struct gameboy *gb) {
             }
         }
     }
+}
+
+int sdl_main(struct gameboy *gb) {
 
     sdl_render();
 
@@ -246,8 +411,8 @@ int sdl_main(struct gameboy *gb) {
         fps = sdl_frames / ((millis - millis_prev) / 1000.0);
         pfps = ppu_frames / ((millis - millis_prev) / 1000.0);
         
-        sprintf(title, "%s - %.0f %0.f", rom_file, fps, pfps);
-        SDL_SetWindowTitle(window, title);
+        // sprintf(title, "%s - %.0f %0.f", rom_file, fps, pfps);
+        // SDL_SetWindowTitle(window, title);
         
         millis_prev = millis;
         sdl_frames = 0;
@@ -256,6 +421,72 @@ int sdl_main(struct gameboy *gb) {
     }
 
     return 1;
+}
+
+uint8_t *sdl_pixel_buffer() {
+    //return screen;
+int idx;
+    if (pix == NULL)
+        pix = malloc(SCREEN_WIDTH * SCREEN_HEIGHT * 3);
+
+
+    //uint24_t *pix = SCREEN_WIDTH * SCREEN_HEIGHT * 3;
+    for(int x = 0; x < SCREEN_WIDTH; x++) {
+        for(int y = 0; y < SCREEN_HEIGHT; y++) {
+            int shade = screen[x][(SCREEN_HEIGHT-1)-y];
+
+            idx = (y*SCREEN_WIDTH*3)+(x*3);
+            // printf("idx %d\n",idx);
+
+            switch(shade) {
+                case 0:
+                    pix[idx+0] = (uint8_t) (xWHITE >> 16);
+                    pix[idx+1] = (uint8_t) (xWHITE >> 8);
+                    pix[idx+2] = (uint8_t) (xWHITE >> 0);
+                    break;
+                case 1:
+                    pix[idx+0] = (uint8_t) (xLIGHT_GRAY >> 16);
+                    pix[idx+1] = (uint8_t) (xLIGHT_GRAY >> 8);
+                    pix[idx+2] = (uint8_t) (xLIGHT_GRAY >> 0);
+                    break;
+                case 2:
+                    pix[idx+0] = (uint8_t) (xDARK_GRAY >> 16);
+                    pix[idx+1] = (uint8_t) (xDARK_GRAY >> 8);
+                    pix[idx+2] = (uint8_t) (xDARK_GRAY >> 0);
+                    break;
+                case 3:
+                    pix[idx+0] = (uint8_t) (xBLACK >> 16);
+                    pix[idx+1] = (uint8_t) (xBLACK >> 8);
+                    pix[idx+2] = (uint8_t) (xBLACK >> 0);
+                    break;
+            }
+
+            // switch(shade) {
+            //     case 0:
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)] = (uint8_t) (xWHITE >> 16);
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+1] = (uint8_t) (xWHITE >> 8);
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+2] = (uint8_t) (xWHITE >> 0);
+            //         break;
+            //     case 1:
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+0] = (uint8_t) (xLIGHT_GRAY >> 16);
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+1] = (uint8_t) (xLIGHT_GRAY >> 8);
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+2] = (uint8_t) (xLIGHT_GRAY >> 0);
+            //         break;
+            //     case 2:
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+0] = (uint8_t) (xDARK_GRAY >> 16);
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+1] = (uint8_t) (xDARK_GRAY >> 8);
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+2] = (uint8_t) (xDARK_GRAY >> 0);
+            //         break;
+            //     case 3:
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+0] = (uint8_t) (xBLACK >> 16);
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+1] = (uint8_t) (xBLACK >> 8);
+            //         pix[(y*SCREEN_WIDTH*3)+(x*3)+2] = (uint8_t) (xBLACK >> 0);
+            //         break;
+            // }
+        }
+    }
+        // exit(0);
+    return pix;
 }
 
 void sdl_render() {

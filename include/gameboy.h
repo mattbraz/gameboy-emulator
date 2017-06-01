@@ -425,9 +425,22 @@ struct joypad {
     uint8_t state;
 };
 
+void sdl_init_window(struct gameboy *gb, const char *file, long window_id);
+void sdl_init(struct gameboy *gb, const char *rom_file);
+void sdl_finish(struct gameboy *gb);
+int sdl_main(struct gameboy *gb);
+void sdl_events(struct gameboy *gb);
+uint8_t *sdl_pixel_buffer() ;
+void sdl_init_audio(struct gameboy *gb);
 
+void gb_run(struct gameboy *gb);
+void gb_run_clocks(struct gameboy *gb, unsigned int clocks);
+void gb_run_ops(struct gameboy *gb, unsigned int ops);
+void gb_run_frames(struct gameboy *gb, unsigned int frames);
+void gb_stop(struct gameboy *gb);
+void gb_close(struct gameboy *gb);
 
-int read_rom(struct gameboy *gb, char *file_path);
+int read_rom(struct gameboy *gb, const char *file_path);
 
 struct gameboy *gb_create();
 void gb_free(struct gameboy *gb);

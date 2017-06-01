@@ -6,9 +6,6 @@
 #include <libgen.h>
 #include "gameboy.h"
 
-int sdl_main();
-void sdl_init(struct gameboy *gb, char *rom_file);
-
 struct gameboy gameboy;
 
 extern int logging;
@@ -16,6 +13,7 @@ extern int logging;
 /*
  * TO DO
  * -----
+ * Clear the sound buffer when resetting
  * ROM bank write range checking (when switching rom banks)
  * FIXME: can we have interrupts doing DMA?
  * interrupt_time.gb fails in dmg mode in bgb too. works in cgb mode
@@ -74,17 +72,19 @@ int main(int argc, char **argv) {
         printf("Failed to run emulator\n");
         exit(1);
     }
-    if (gb->cart_rom[CART_TYPE] > 0x03) {
-        printf("Failed to run emulator - unsupported memory banking\n");
-        exit(1);
-    }
+    // if (gb->cart_rom[CART_TYPE] > 0x03) {
+    //     printf("Failed to run emulator - unsupported memory banking\n");
+    //     exit(1);
+    // }
 
     sdl_init(gb, basename(file_path));
     gb_reset(gb);
 
-    while(1) {
-        gb_main_new(gb);
-        sdl_main(gb);
-    }
+    gb_run(gb);
+
+    // while(1) {
+    //     gb_main_new(gb);
+    //     sdl_main(gb);
+    // }
         
 }
