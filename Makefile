@@ -48,13 +48,13 @@ build/%.o: src/core/%.c $(LIB_DEPS)
 	$(CC) -c $(CFLAGS) -o $@ $<
 #	$(CC) -arch i386 -arch x86_64 -c $(CFLAGS) -o $@ $<
 
-gameboy: build/main.o build/sdl.o $(LIB)
+gameboy: build/main.o build/sdl.o build/libgb.a  #$(LIB)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 # $(SO): $(LIB_OBJS)
 # 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
-libgb.a: $(LIB_OBJS)
+build/libgb.a: $(LIB_OBJS)
 	ar rcs $@ $^
 	
 pygb: $(LIB) src/extension/pygb.c include/gameboy.h

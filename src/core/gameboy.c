@@ -6,8 +6,6 @@
 #include "gameboy.h"
 #include "cpu.h"
 
-#include <pthread.h>
-
 extern uint8_t boot_image[];
 
 int boot = 1;
@@ -20,17 +18,10 @@ int CLOCKS_PER_SDL_FRAME = 70224;
 
 void gb_run(struct gameboy *gb) {
 
-    pthread_t self = pthread_self();
-    unsigned long tid = (unsigned long) self;
-
     paused = 0;
-    int i = 0;
     while(!paused) {
         gb_main_new(gb);
-        //sdl_main(gb);
-        if((i++ % 100) == 0)
-            //printf("thread id: %d", tid);
-            printf("%lu libgb.gb_run - clocks %d\n",tid, gb->clocks_total);
+        sdl_main(gb);
     }
 }
 

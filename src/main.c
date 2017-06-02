@@ -72,19 +72,15 @@ int main(int argc, char **argv) {
         printf("Failed to run emulator\n");
         exit(1);
     }
-    // if (gb->cart_rom[CART_TYPE] > 0x03) {
-    //     printf("Failed to run emulator - unsupported memory banking\n");
-    //     exit(1);
-    // }
 
-    sdl_init(gb, basename(file_path));
-    gb_reset(gb);
+    sdl_init_video(gb, basename(file_path));
+    sdl_init_audio(gb);
 
-    gb_run(gb);
-
-    // while(1) {
-    //     gb_main_new(gb);
-    //     sdl_main(gb);
-    // }
+    //gb_run(gb);
+    while(1) {
+        gb_main_new(gb);
+        sdl_main(gb);
+        sdl_events(gb);
+    }
         
 }
