@@ -16,7 +16,13 @@
 #define CLOCKS_MODE_0		204
 
 uint8_t screen[SCREEN_WIDTH][SCREEN_HEIGHT];
-uint8_t buffer[SCREEN_WIDTH][SCREEN_HEIGHT];
+//uint8_t buffer[SCREEN_WIDTH][SCREEN_HEIGHT];
+
+#define WHITE       0xFFE0F8D0
+#define LIGHT_GRAY  0xFF88C070
+#define DARK_GRAY   0xFF346856
+#define BLACK       0xFF081820
+#define TRANSPARENT 0x00000000
 
 int ppu_frames = 0;
 
@@ -39,9 +45,28 @@ void lcd_set_stat_mode(struct gameboy *gb, uint8_t mode) {
 }
 
 void lcd_copy_buf(struct gameboy *gb) {
-    for(int x = 0; x < SCREEN_WIDTH; x++) {
-        for(int y = 0; y < SCREEN_HEIGHT; y++) {
-            screen[x][y] = buffer[x][y];
+    uint32_t *pixels = (uint32_t *) gb->gpu->pixel_buffer;
+    for (int x = 0; x < SCREEN_WIDTH; x++) {
+        for (int y = 0; y < SCREEN_HEIGHT; y++) {
+            int shade = screen[x][y];
+            switch(shade) {
+                case 0:
+                    pixels[(y*SCREEN_WIDTH)+x] = WHITE;
+                    //pixels[x][y] = WHITE;
+                    break;
+                case 1:
+                    pixels[(y*SCREEN_WIDTH)+x] = LIGHT_GRAY;
+                    //pixels[x][y] = LIGHT_GRAY;
+                    break;
+                case 2:
+                    pixels[(y*SCREEN_WIDTH)+x] = DARK_GRAY;
+                    //pixels[x][y] = DARK_GRAY;
+                    break;
+                case 3:
+                    pixels[(y*SCREEN_WIDTH)+x] = BLACK;
+                    //pixels[x][y] = BLACK;
+                    break;
+            }
         }
     }
 }
@@ -63,7 +88,7 @@ void lcd_dmg_pixel(struct gameboy *gb, int lx) {
     }
 
     int ly = mem_read_u8(gb, LY);
-    buffer[lx][ly] = color;
+    screen[lx][ly] = color;
     
 //    if (ly == 0 && lx == 0) {
 //        printf("x0y0 idx %d color %d bgdata %X\n", gb->gpu->bg_idx, color, gb->gpu->bg_data);

@@ -2,26 +2,13 @@
 #include "SDL2/SDL.h"
 #include "gameboy.h"
 
-#define WHITE       0xFFE0F8D0
-#define LIGHT_GRAY  0xFF88C070
-#define DARK_GRAY   0xFF346856
-#define BLACK       0xFF081820
-#define TRANSPARENT 0x00000000
-
-#define xWHITE       0xE0F8D0
-#define xLIGHT_GRAY  0x88C070
-#define xDARK_GRAY   0x346856
-#define xBLACK       0x081820
-uint8_t *pix = NULL;
-
 void sdl_render();
-void sdl_apu_callback(void *userdata, Uint8 *buf, int len);
+void sdl_audio_callback(void *userdata, Uint8 *buf, int len);
 
 extern int logging;
 extern int paused;
 extern int ppu_frames;
 extern int CLOCKS_PER_SDL_FRAME;
-extern uint8_t screen[SCREEN_WIDTH][SCREEN_HEIGHT];
 
 extern uint8_t apu_buffer[4][SAMPLES_PER_CALLBACK];
 
@@ -32,8 +19,6 @@ static float fps = 0;
 static float pfps = 0;
 
 int chennel_enable = 0xF;
-char *rom_file;
-char title[80];
 
 int clocks_per_call = 0;
 int clocks_per_sample = 0;
@@ -45,44 +30,6 @@ SDL_Surface *surface = NULL;
 SDL_Texture *texture = NULL;
 SDL_AudioSpec *hardware_spec = NULL;
 
-void sdl_init_window(struct gameboy *gb, const char *title, long window_id) {
-
-    if (SDL_Init(0) != 0) {
-        printf("Error initializing SDL:  %s\n", SDL_GetError());
-        exit(1);
-    }
-
-    if (SDL_VideoInit(NULL) != 0) {
-        printf("Error initializing SDL video:  %s\n", SDL_GetError());
-        exit(2);
-    }
-
-    window = SDL_CreateWindowFrom((void *) window_id);
-    if(window == NULL) {
-        printf( "SDL Error: %s\n", SDL_GetError());
-        exit(1);
-    }
-
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if(renderer == NULL) {
-        printf( "SDL Error: %s\n", SDL_GetError());
-        exit(1);
-    }
-
-    surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-    if(surface == NULL) {
-        printf( "SDL Error: %s\n", SDL_GetError());
-        exit(1);
-    }
-
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
-    if(texture == NULL) {
-        printf( "SDL Error: %s\n", SDL_GetError());
-        exit(1);
-    }
-
-    SDL_SetWindowTitle(window, title);
-}
 
 void sdl_init_video(struct gameboy *gb, const char *title) {
     window = SDL_CreateWindow("GAMEBOY", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, SDL_WINDOW_SHOWN);
@@ -110,6 +57,8 @@ void sdl_init_video(struct gameboy *gb, const char *title) {
     }
 
     SDL_SetWindowTitle(window, title);
+
+    //gb_set_video_callback();
 }
 
 
@@ -128,7 +77,7 @@ void sdl_init_audio(struct gameboy *gb) {
     desired->format = AUDIO_U8;
     desired->channels = 1;
     desired->samples = SAMPLES_PER_CALLBACK;
-    desired->callback = sdl_apu_callback;
+    desired->callback = sdl_audio_callback;
     desired->userdata = gb;
     
     if (SDL_OpenAudio(desired, hardware_spec) < 0) {
@@ -152,7 +101,7 @@ void sdl_init_audio(struct gameboy *gb) {
     SDL_PauseAudio(0);
 }
 
-void sdl_finish(struct gameboy *gb) {
+void sdl_destroy() {
     printf("Destroying SDL\n");
     free(hardware_spec);
     SDL_DestroyTexture(texture);
@@ -160,25 +109,99 @@ void sdl_finish(struct gameboy *gb) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    
-    printf("Destroying EMU\n");
-    gb_free(gb);
 }
 
-// removing the event handling in SDL results in the WX GUI being totally frozen (swirly mouse anim).
-// something about procesing the events in SDL allows the wx thread to run... ?
+int sdl_video_main(struct gameboy *gb) {
 
-// calling sdl_events() from python with wxCallAfter() seemed to work ok but was slow and seemed to miss key presses
-// handling key presses in wx and passing to gb worked.
-// wx cannot get key presses from the SDL window though
+    //sdl_render();
+    //SDL_UpdateTexture(texture, NULL, surface->pixels, surface->pitch);
 
-// why does letting the gb_run() freeze the main thread?  something to do with the GIL?
+    SDL_UpdateTexture(texture, NULL, gb_pixel_buffer(gb), SCREEN_WIDTH * 4);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+
+    sdl_frames++;
+    millis = SDL_GetTicks();
+    if (millis > millis_prev + 1000) {
+        fps = sdl_frames / ((millis - millis_prev) / 1000.0);
+        pfps = ppu_frames / ((millis - millis_prev) / 1000.0);
+        
+        // sprintf(title, "%s - %.0f %0.f", rom_file, fps, pfps);
+        // SDL_SetWindowTitle(window, title);
+        
+        millis_prev = millis;
+        sdl_frames = 0;
+        ppu_frames = 0;
+        //callbacks = 0;
+    }
+
+    return 1;
+}
+
+void sdl_video_callback(struct gameboy *gb) {
+
+    //sdl_render();
+    //SDL_UpdateTexture(texture, NULL, surface->pixels, surface->pitch);
+
+    SDL_UpdateTexture(texture, NULL, gb_pixel_buffer(gb), SCREEN_WIDTH * 4);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+
+    sdl_events(gb);
+    
+    sdl_frames++;
+    millis = SDL_GetTicks();
+    if (millis > millis_prev + 1000) {
+        fps = sdl_frames / ((millis - millis_prev) / 1000.0);
+        pfps = ppu_frames / ((millis - millis_prev) / 1000.0);
+        
+        // sprintf(title, "%s - %.0f %0.f", rom_file, fps, pfps);
+        // SDL_SetWindowTitle(window, title);
+        
+        millis_prev = millis;
+        sdl_frames = 0;
+        ppu_frames = 0;
+        //callbacks = 0;
+    }
+}
+
+void sdl_audio_callback(void *userdata, Uint8 *buf, int len) {
+    struct gameboy *gb = (struct gameboy *) userdata;
+    if (paused) {
+        SDL_memset(buf, 0, len);
+        return;
+    }
+
+    apu_upd(gb, clocks_per_call, clocks_per_sample);
+
+    /* Manual mixing, as SDL_MixAudio doesn't want to work on Windows */
+    uint8_t sample = 0;
+    for(int i = 0; i < len; i++) {
+        sample = 0;
+        if (chennel_enable & 0x1) sample += apu_buffer[0][i];
+        if (chennel_enable & 0x2) sample += apu_buffer[1][i];
+        if (chennel_enable & 0x4) sample += apu_buffer[2][i];
+        if (chennel_enable & 0x8) sample += apu_buffer[3][i];
+        if (sample > 255) sample = 255;
+        buf[i] = sample;
+    }
+    //callbacks++;
+    
+//    SDL_memset(buf, 0, len);
+//    SDL_MixAudio(buf, apu_buffer[0], len, SDL_MIX_MAXVOLUME);
+//    SDL_MixAudio(buf, apu_buffer[1], len, SDL_MIX_MAXVOLUME);
+//    SDL_MixAudio(buf, apu_buffer[2], len, SDL_MIX_MAXVOLUME);
+//    SDL_MixAudio(buf, apu_buffer[3], len, SDL_MIX_MAXVOLUME);
+}
 
 void sdl_events(struct gameboy *gb) {
     SDL_Event e;
     while(SDL_PollEvent(&e) != 0) {
         if(e.type == SDL_QUIT) {
-            sdl_finish(gb);
+            sdl_destroy();
+            gb_free(gb);
             exit(0);
         } else if(e.type == SDL_KEYDOWN) {
             switch(e.key.keysym.sym) {
@@ -222,7 +245,8 @@ void sdl_events(struct gameboy *gb) {
                     gb_reset(gb);
                     break;
                 case SDLK_ESCAPE:
-                    sdl_finish(gb);
+                    sdl_destroy();
+                    gb_free(gb);
                     exit(0);
                     break;
                     
@@ -288,122 +312,3 @@ void sdl_events(struct gameboy *gb) {
         }
     }
 }
-
-int sdl_main(struct gameboy *gb) {
-
-    sdl_render();
-
-    SDL_UpdateTexture(texture, NULL, surface->pixels, surface->pitch);
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
-
-    sdl_frames++;
-    millis = SDL_GetTicks();
-    if (millis > millis_prev + 1000) {
-        fps = sdl_frames / ((millis - millis_prev) / 1000.0);
-        pfps = ppu_frames / ((millis - millis_prev) / 1000.0);
-        
-        // sprintf(title, "%s - %.0f %0.f", rom_file, fps, pfps);
-        // SDL_SetWindowTitle(window, title);
-        
-        millis_prev = millis;
-        sdl_frames = 0;
-        ppu_frames = 0;
-        //callbacks = 0;
-    }
-
-    return 1;
-}
-
-uint8_t *sdl_pixel_buffer() {
-
-    if (pix == NULL)
-        pix = malloc(SCREEN_WIDTH * SCREEN_HEIGHT * 3);
-
-    for(int x = 0; x < SCREEN_WIDTH; x++) {
-        for(int y = 0; y < SCREEN_HEIGHT; y++) {
-            int shade = screen[x][(SCREEN_HEIGHT-1)-y];
-            int idx = (y*SCREEN_WIDTH*3)+(x*3);
-
-            switch(shade) {
-                case 0:
-                    pix[idx+0] = (uint8_t) (xWHITE >> 16);
-                    pix[idx+1] = (uint8_t) (xWHITE >> 8);
-                    pix[idx+2] = (uint8_t) (xWHITE >> 0);
-                    break;
-                case 1:
-                    pix[idx+0] = (uint8_t) (xLIGHT_GRAY >> 16);
-                    pix[idx+1] = (uint8_t) (xLIGHT_GRAY >> 8);
-                    pix[idx+2] = (uint8_t) (xLIGHT_GRAY >> 0);
-                    break;
-                case 2:
-                    pix[idx+0] = (uint8_t) (xDARK_GRAY >> 16);
-                    pix[idx+1] = (uint8_t) (xDARK_GRAY >> 8);
-                    pix[idx+2] = (uint8_t) (xDARK_GRAY >> 0);
-                    break;
-                case 3:
-                    pix[idx+0] = (uint8_t) (xBLACK >> 16);
-                    pix[idx+1] = (uint8_t) (xBLACK >> 8);
-                    pix[idx+2] = (uint8_t) (xBLACK >> 0);
-                    break;
-            }
-        }
-    }
-
-    return pix;
-}
-
-void sdl_render() {
-    uint32_t *pix = surface->pixels;
-    for(int x = 0; x < SCREEN_WIDTH; x++) {
-        for(int y = 0; y < SCREEN_HEIGHT; y++) {
-            int shade = screen[x][y];
-            switch(shade) {
-                case 0:
-                    pix[(y*SCREEN_WIDTH)+x] = WHITE;
-                    break;
-                case 1:
-                    pix[(y*SCREEN_WIDTH)+x] = LIGHT_GRAY;
-                    break;
-                case 2:
-                    pix[(y*SCREEN_WIDTH)+x] = DARK_GRAY;
-                    break;
-                case 3:
-                    pix[(y*SCREEN_WIDTH)+x] = BLACK;
-                    break;
-            }
-        }
-    }
-}
-
-
-void sdl_apu_callback(void *userdata, Uint8 *buf, int len) {
-    struct gameboy *gb = (struct gameboy *) userdata;
-    if (paused) {
-        SDL_memset(buf, 0, len);
-        return;
-    }
-
-    apu_upd(gb, clocks_per_call, clocks_per_sample);
-
-    /* Manual mixing, as SDL_MixAudio doesn't want to work on Windows */
-    uint8_t sample = 0;
-    for(int i = 0; i < len; i++) {
-        sample = 0;
-        if (chennel_enable & 0x1) sample += apu_buffer[0][i];
-        if (chennel_enable & 0x2) sample += apu_buffer[1][i];
-        if (chennel_enable & 0x4) sample += apu_buffer[2][i];
-        if (chennel_enable & 0x8) sample += apu_buffer[3][i];
-        if (sample > 255) sample = 255;
-        buf[i] = sample;
-    }
-    //callbacks++;
-    
-//    SDL_memset(buf, 0, len);
-//    SDL_MixAudio(buf, apu_buffer[0], len, SDL_MIX_MAXVOLUME);
-//    SDL_MixAudio(buf, apu_buffer[1], len, SDL_MIX_MAXVOLUME);
-//    SDL_MixAudio(buf, apu_buffer[2], len, SDL_MIX_MAXVOLUME);
-//    SDL_MixAudio(buf, apu_buffer[3], len, SDL_MIX_MAXVOLUME);
-}
-

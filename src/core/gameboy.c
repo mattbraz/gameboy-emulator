@@ -8,6 +8,9 @@
 
 extern uint8_t boot_image[];
 
+extern uint32_t pixels[SCREEN_WIDTH][SCREEN_HEIGHT];
+
+
 int boot = 1;
 int logging = 0;
 int paused = 0;
@@ -16,12 +19,16 @@ int CLOCKS_PER_SDL_FRAME = 70224;
 
 /* Public interface */
 
-void gb_run(struct gameboy *gb) {
+void gb_set_vbl_callback(struct gameboy *gb, vbl_func_ptr vbl_callback) {
+    gb->vbl_callback = vbl_callback;
+}
 
+void gb_run(struct gameboy *gb) {
     paused = 0;
     while(!paused) {
         gb_main_new(gb);
-        sdl_main(gb);
+        /* FIXME: Check if the callback was set */
+        (*gb->vbl_callback)(gb);
     }
 }
 
@@ -31,20 +38,20 @@ void gb_run_ops(struct gameboy *gb, unsigned int ops) {
     while (ops--) {
         gb_once(gb);
     }
-    //sdl_main(gb);   // FIXME: this is not right
 }
 void gb_run_frames(struct gameboy *gb, unsigned int frames) {
     while (frames--) {
         gb_main_new(gb);
-        //sdl_main(gb);
+        //(*gb->vbl_callback)(gb);
     }
 }
 
 void gb_stop(struct gameboy *gb) {
     paused = 1;
 }
-void gb_close(struct gameboy *gb) {
-    sdl_finish(gb);
+
+uint32_t *gb_pixel_buffer(struct gameboy *gb) {
+    return (uint32_t *) gb->gpu->pixel_buffer;
 }
 
 /* ------------------------------ */

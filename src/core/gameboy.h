@@ -140,6 +140,9 @@
 
 struct gameboy;
 
+typedef void (*vbl_func_ptr)(struct gameboy *);
+typedef void (*mhz_func_ptr)(struct gameboy *);
+
 struct op {
     uint16_t        opcode;
     struct op_def   *op_def;
@@ -204,7 +207,6 @@ struct cpu {
             uint8_t H;
         };
     };
-
     /* Program Counter */
     uint16_t PC;
     /* Stack Pointer */
@@ -243,6 +245,8 @@ struct gpu {
     uint8_t obj_idx;
     uint8_t obj_color;
     uint8_t obj_priority;
+    /* Pixel data */
+    uint32_t pixel_buffer[SCREEN_WIDTH][SCREEN_HEIGHT];
 };
 
 struct channel {
@@ -418,6 +422,9 @@ struct gameboy {
     uint32_t clocks_dma;
     uint32_t clocks_serial;
     int clocks_total;
+
+    /* */
+    vbl_func_ptr vbl_callback;
     
 };
 
@@ -425,13 +432,19 @@ struct joypad {
     uint8_t state;
 };
 
-void sdl_init_window(struct gameboy *gb, const char *file, long window_id);
 void sdl_init(struct gameboy *gb, const char *rom_file);
 void sdl_finish(struct gameboy *gb);
-int sdl_main(struct gameboy *gb);
+int sdl_video_main(struct gameboy *gb);
 void sdl_events(struct gameboy *gb);
 uint8_t *sdl_pixel_buffer();
 void sdl_init_audio(struct gameboy *gb);
+void sdl_init_video(struct gameboy *gb, const char *title);
+
+void sdl_video_callback(struct gameboy *gb);
+
+uint32_t *gb_pixel_buffer(struct gameboy *gb);
+
+void gb_set_vbl_callback(struct gameboy *gb, vbl_func_ptr vbl_callback);
 
 void gb_run(struct gameboy *gb);
 void gb_run_clocks(struct gameboy *gb, unsigned int clocks);

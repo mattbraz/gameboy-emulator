@@ -76,11 +76,13 @@ int main(int argc, char **argv) {
     sdl_init_video(gb, basename(file_path));
     sdl_init_audio(gb);
 
-    //gb_run(gb);
-    while(1) {
-        gb_main_new(gb);
-        sdl_main(gb);
-        sdl_events(gb);
-    }
+    gb_set_vbl_callback(gb, sdl_video_callback);
+    gb_run(gb);
+
+    // while(1) {
+    //     gb_main_new(gb);
+    //     sdl_video_main(gb);
+    //     sdl_events(gb);
+    // }
         
 }
