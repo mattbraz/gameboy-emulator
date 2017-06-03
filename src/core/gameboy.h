@@ -375,6 +375,7 @@ struct gameboy {
     struct gpu *gpu;
     struct apu *apu;
     uint8_t *mem;
+
     uint8_t boot_rom[0x100];
     
     //    0000-3FFF   16KB ROM Bank 00     (in cartridge, fixed at bank 00)
@@ -423,7 +424,10 @@ struct gameboy {
     uint32_t clocks_serial;
     int clocks_total;
 
-    /* */
+    /* Misc */
+    int boot;
+
+    /* Callback function pointers */
     vbl_func_ptr vbl_callback;
     
 };
@@ -433,7 +437,7 @@ struct joypad {
 };
 
 void sdl_init(struct gameboy *gb, const char *rom_file);
-void sdl_finish(struct gameboy *gb);
+void sdl_destroy();
 int sdl_video_main(struct gameboy *gb);
 void sdl_events(struct gameboy *gb);
 uint8_t *sdl_pixel_buffer();
@@ -446,12 +450,9 @@ uint32_t *gb_pixel_buffer(struct gameboy *gb);
 
 void gb_set_vbl_callback(struct gameboy *gb, vbl_func_ptr vbl_callback);
 
-void gb_run(struct gameboy *gb);
 void gb_run_clocks(struct gameboy *gb, unsigned int clocks);
 void gb_run_ops(struct gameboy *gb, unsigned int ops);
 void gb_run_frames(struct gameboy *gb, unsigned int frames);
-void gb_stop(struct gameboy *gb);
-void gb_close(struct gameboy *gb);
 
 int read_rom(struct gameboy *gb, const char *file_path);
 

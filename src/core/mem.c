@@ -3,9 +3,6 @@
 #include <stdlib.h>
 #include "gameboy.h"
 
-extern int logging;
-extern int boot;
-
 uint8_t mem_read_regs_u8(struct gameboy *gb, uint16_t addr) {
     /* Registers */
     return gb->regs[addr - REGS_START];
@@ -20,7 +17,7 @@ uint8_t mem_read_vram_u8(struct gameboy *gb, uint16_t addr) {
 
 uint8_t mem_read_u8(struct gameboy *gb, uint16_t addr) {
     if (addr >= 0x0000 && addr <= 0x00FF) {
-        if (boot) return gb->boot_rom[addr];
+        if (gb->boot) return gb->boot_rom[addr];
     }
     
     /* Cart ROM area */
@@ -98,7 +95,7 @@ uint8_t mem_read_u8(struct gameboy *gb, uint16_t addr) {
 void mem_write_u8(struct gameboy *gb, uint16_t addr, uint8_t value) {
 
     if(addr == 0xFF50) {
-        boot = 0;
+        gb->boot = 0;
     }
     
     /* Cart ROM area */

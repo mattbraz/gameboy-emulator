@@ -6,7 +6,7 @@ void sdl_render();
 void sdl_audio_callback(void *userdata, Uint8 *buf, int len);
 
 extern int logging;
-extern int paused;
+int paused;
 extern int ppu_frames;
 extern int CLOCKS_PER_SDL_FRAME;
 
@@ -30,35 +30,41 @@ SDL_Surface *surface = NULL;
 SDL_Texture *texture = NULL;
 SDL_AudioSpec *hardware_spec = NULL;
 
-
 void sdl_init_video(struct gameboy *gb, const char *title) {
-    window = SDL_CreateWindow("GAMEBOY", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH * 2, SCREEN_HEIGHT * 2, SDL_WINDOW_SHOWN);
-    if(window == NULL) {
+
+    window = SDL_CreateWindow(
+        "GAMEBOY",
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        SCREEN_WIDTH * 2,
+        SCREEN_HEIGHT * 2,
+        SDL_WINDOW_SHOWN
+    );
+    if (window == NULL) {
         printf( "SDL Error: %s\n", SDL_GetError());
         exit(1);
     }
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if(renderer == NULL) {
+    if (renderer == NULL) {
         printf( "SDL Error: %s\n", SDL_GetError());
         exit(1);
     }
     
     surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-    if(surface == NULL) {
+    if (surface == NULL) {
         printf( "SDL Error: %s\n", SDL_GetError());
         exit(1);
     }
     
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
-    if(texture == NULL) {
+    if (texture == NULL) {
         printf( "SDL Error: %s\n", SDL_GetError());
         exit(1);
     }
 
     SDL_SetWindowTitle(window, title);
 
-    //gb_set_video_callback();
 }
 
 
@@ -113,9 +119,6 @@ void sdl_destroy() {
 
 int sdl_video_main(struct gameboy *gb) {
 
-    //sdl_render();
-    //SDL_UpdateTexture(texture, NULL, surface->pixels, surface->pitch);
-
     SDL_UpdateTexture(texture, NULL, gb_pixel_buffer(gb), SCREEN_WIDTH * 4);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -141,16 +144,13 @@ int sdl_video_main(struct gameboy *gb) {
 
 void sdl_video_callback(struct gameboy *gb) {
 
-    //sdl_render();
-    //SDL_UpdateTexture(texture, NULL, surface->pixels, surface->pitch);
-
     SDL_UpdateTexture(texture, NULL, gb_pixel_buffer(gb), SCREEN_WIDTH * 4);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 
     sdl_events(gb);
-    
+
     sdl_frames++;
     millis = SDL_GetTicks();
     if (millis > millis_prev + 1000) {
@@ -159,7 +159,7 @@ void sdl_video_callback(struct gameboy *gb) {
         
         // sprintf(title, "%s - %.0f %0.f", rom_file, fps, pfps);
         // SDL_SetWindowTitle(window, title);
-        
+        printf("fps %f\n",fps);
         millis_prev = millis;
         sdl_frames = 0;
         ppu_frames = 0;
@@ -198,12 +198,12 @@ void sdl_audio_callback(void *userdata, Uint8 *buf, int len) {
 
 void sdl_events(struct gameboy *gb) {
     SDL_Event e;
-    while(SDL_PollEvent(&e) != 0) {
-        if(e.type == SDL_QUIT) {
+    while (SDL_PollEvent(&e) != 0) {
+        if (e.type == SDL_QUIT) {
             sdl_destroy();
             gb_free(gb);
             exit(0);
-        } else if(e.type == SDL_KEYDOWN) {
+        } else if (e.type == SDL_KEYDOWN) {
             switch(e.key.keysym.sym) {
                 case SDLK_F1:
                     chennel_enable ^= 0x1;
@@ -282,7 +282,7 @@ void sdl_events(struct gameboy *gb) {
                     gb_joypad_press(gb, BUTTON_START);
                     break;
             }
-        } else if(e.type == SDL_KEYUP) {
+        } else if (e.type == SDL_KEYUP) {
             switch(e.key.keysym.sym) {
                 case SDLK_z:
                     gb_joypad_release(gb, BUTTON_B);

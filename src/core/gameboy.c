@@ -8,12 +8,22 @@
 
 extern uint8_t boot_image[];
 
-extern uint32_t pixels[SCREEN_WIDTH][SCREEN_HEIGHT];
+/*
+ * How to drive the emulator?
+ *
+ * From the main thread:
+ * Call run_ops or run_frames as you please, controlled by your own timer.
+ * Call sdl gfx and events yourself in between
+ *
+ * Multi-threaded model:
+ * Internal timer that calls back 1000/60 millis and adds x/60 clocks to the queue
+ *   where x = 4 mhz and can be configured
+ *   x = 0 to pause
+ * Optional callback per vbl
+ * 
+ */
 
-
-int boot = 1;
-int logging = 0;
-int paused = 0;
+int logging = 0;    // FIXME: implement this in the client, return the op (like to the debugger) and let it read the mem and regs.
 
 int CLOCKS_PER_SDL_FRAME = 70224;
 
@@ -23,17 +33,6 @@ void gb_set_vbl_callback(struct gameboy *gb, vbl_func_ptr vbl_callback) {
     gb->vbl_callback = vbl_callback;
 }
 
-void gb_run(struct gameboy *gb) {
-    paused = 0;
-    while(!paused) {
-        gb_main_new(gb);
-        /* FIXME: Check if the callback was set */
-        (*gb->vbl_callback)(gb);
-    }
-}
-
-void gb_run_clocks(struct gameboy *gb, unsigned int clocks) {}
-
 void gb_run_ops(struct gameboy *gb, unsigned int ops) {
     while (ops--) {
         gb_once(gb);
@@ -42,32 +41,26 @@ void gb_run_ops(struct gameboy *gb, unsigned int ops) {
 void gb_run_frames(struct gameboy *gb, unsigned int frames) {
     while (frames--) {
         gb_main_new(gb);
-        //(*gb->vbl_callback)(gb);
+        //gb->vbl_callback(gb);
     }
-}
-
-void gb_stop(struct gameboy *gb) {
-    paused = 1;
 }
 
 uint32_t *gb_pixel_buffer(struct gameboy *gb) {
     return (uint32_t *) gb->gpu->pixel_buffer;
 }
 
-/* ------------------------------ */
+/* Private interface */
 
 void gb_main_new(struct gameboy *gb) {
-    if (paused) return;
     gb->clocks_total = gb->clocks_total % CLOCKS_PER_SDL_FRAME;
     while (gb->clocks_total < CLOCKS_PER_SDL_FRAME) {
         gb_once(gb);
     }
 }
 
+/* Runs one whole cpu operation or 4 clocks */
 void gb_once(struct gameboy *gb) {
     struct op op;
-
-    if (paused) return;
 
     gb_process_interrupts(gb);
 
@@ -297,7 +290,7 @@ void gb_free(struct gameboy *gb) {
 void gb_reset(struct gameboy *gb) {
     int i;
     
-    boot = 1;
+    gb->boot = 1;
     
     for(i = 0x0; i < 0x100; i++)
         gb->boot_rom[i] = boot_image[i];
