@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
     /* Only command line arg is a path to a rom file */
     if (argc < 2) {
-        printf("Please pass a ROM file with -f\n");
+        printf("usage: %s rom_file\n", argv[0]);
         exit(1);
     }
     file_path = argv[1];
