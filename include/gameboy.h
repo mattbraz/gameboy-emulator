@@ -246,6 +246,7 @@ struct gpu {
     uint8_t obj_color;
     uint8_t obj_priority;
     /* Pixel data */
+    uint8_t screen[SCREEN_WIDTH][SCREEN_HEIGHT];
     uint32_t pixel_buffer[SCREEN_WIDTH][SCREEN_HEIGHT];
 };
 
@@ -457,6 +458,7 @@ void gb_run_frames(struct gameboy *gb, unsigned int frames);
 int read_rom(struct gameboy *gb, const char *file_path);
 
 struct gameboy *gb_create();
+void *gb_init(struct gameboy *gb);
 void gb_free(struct gameboy *gb);
 void gb_reset(struct gameboy *gb);
 void gb_main_new(struct gameboy *gb);

@@ -234,6 +234,13 @@ struct gameboy *gb_create() {
     if(gb == NULL) {
         printf("Failed to allocate memory for gb\n");
     }
+    gb_init(gb);
+    
+    return gb;
+}
+
+
+void *gb_init(struct gameboy *gb) {
     gb->cpu = malloc(sizeof(struct cpu));
     if(gb->cpu == NULL) {
         printf("Failed to allocate memory for cpu\n");

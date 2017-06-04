@@ -15,9 +15,6 @@
 #define CLOCKS_MODE_3		160 // cum. 252
 #define CLOCKS_MODE_0		204
 
-uint8_t screen[SCREEN_WIDTH][SCREEN_HEIGHT];
-//uint8_t buffer[SCREEN_WIDTH][SCREEN_HEIGHT];
-
 #define WHITE       0xFFE0F8D0
 #define LIGHT_GRAY  0xFF88C070
 #define DARK_GRAY   0xFF346856
@@ -48,7 +45,7 @@ void lcd_copy_buf(struct gameboy *gb) {
     uint32_t *pixels = (uint32_t *) gb->gpu->pixel_buffer;
     for (int x = 0; x < SCREEN_WIDTH; x++) {
         for (int y = 0; y < SCREEN_HEIGHT; y++) {
-            int shade = screen[x][y];
+            int shade = gb->gpu->screen[x][y];
             switch(shade) {
                 case 0:
                     pixels[(y*SCREEN_WIDTH)+x] = WHITE;
@@ -88,7 +85,7 @@ void lcd_dmg_pixel(struct gameboy *gb, int lx) {
     }
 
     int ly = mem_read_u8(gb, LY);
-    screen[lx][ly] = color;
+    gb->gpu->screen[lx][ly] = color;
     
 //    if (ly == 0 && lx == 0) {
 //        printf("x0y0 idx %d color %d bgdata %X\n", gb->gpu->bg_idx, color, gb->gpu->bg_data);
