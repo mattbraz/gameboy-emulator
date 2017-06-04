@@ -12,6 +12,10 @@ A cross-platform Game Boy (DMG) emulator written in C.
 - Improve the slightly dodgy sound emulation.
 - Move to a threaded model.
 
+#### Screenshots
+
+<img src="https://mattbraz.github.io/image/metroid-new.png" width="350">
+
 #### Keys
 
 Up:     Up
