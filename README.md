@@ -14,7 +14,7 @@ A cross-platform Game Boy (DMG) emulator written in C.
 
 #### Screenshots
 
-<img src="https://mattbraz.github.io/image/metroid-new.png" width="350">
+<img src="https://mattbraz.github.io/image/oh-win7-336x326.png">
 
 #### Keys
 
