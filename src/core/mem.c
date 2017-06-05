@@ -215,8 +215,8 @@ void mem_write_u8(struct gameboy *gb, uint16_t addr, uint8_t value) {
         case NR14:
             gb->mem[addr] = value;
             if (value & (0x01 << 7)) {
-                //apu_trigger2(gb, gb->apu->channel_1, 1);
-                gb->apu->channel_1->recalc = 1;
+                //apu_trigger2(gb, gb->apu.channel_1, 1);
+                gb->apu.channel_1.recalc = 1;
             }
             break;
         // case NR21:
@@ -225,8 +225,8 @@ void mem_write_u8(struct gameboy *gb, uint16_t addr, uint8_t value) {
         case NR24:
             gb->mem[addr] = value;
             if (value & (0x01 << 7)) {
-                //apu_trigger2(gb, gb->apu->channel_2, 2);
-                gb->apu->channel_2->recalc = 1;
+                //apu_trigger2(gb, gb->apu.channel_2, 2);
+                gb->apu.channel_2.recalc = 1;
             }
             break;
 //        case NR30:
@@ -236,8 +236,8 @@ void mem_write_u8(struct gameboy *gb, uint16_t addr, uint8_t value) {
         case NR34:
             gb->mem[addr] = value;
             if (value & (0x01 << 7)) {
-                //apu_trigger2(gb, gb->apu->channel_3, 3);
-                gb->apu->channel_3->recalc = 1;
+                //apu_trigger2(gb, gb->apu.channel_3, 3);
+                gb->apu.channel_3.recalc = 1;
             }
             break;//
 //        case NR41:
@@ -246,8 +246,8 @@ void mem_write_u8(struct gameboy *gb, uint16_t addr, uint8_t value) {
         case NR44:
             gb->mem[addr] = value;
             if (value & (0x01 << 7)) {
-                //apu_trigger2(gb, gb->apu->channel_4, 4);
-                gb->apu->channel_4->recalc = 1;
+                //apu_trigger2(gb, gb->apu.channel_4, 4);
+                gb->apu.channel_4.recalc = 1;
             }
             break;
 //        case NR50:

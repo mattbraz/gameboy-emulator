@@ -46,7 +46,7 @@ void gb_run_frames(struct gameboy *gb, unsigned int frames) {
 }
 
 uint32_t *gb_pixel_buffer(struct gameboy *gb) {
-    return (uint32_t *) gb->gpu->pixel_buffer;
+    return (uint32_t *) gb->gpu.pixel_buffer;
 }
 
 /* Private interface */
@@ -189,21 +189,21 @@ void gb_process_interrupts(struct gameboy *gb) {
     /* We have interrupts that will be processed. */
     gb->ime_delay = 0;
     gb->ime = 0;
-    cpu_stack_push(gb, gb->cpu->PC);
+    cpu_stack_push(gb, gb->cpu.PC);
     if (foo & IRQ_VBLANK) {
-        gb->cpu->PC = IRQ_VBLANK_JUMP;
+        gb->cpu.PC = IRQ_VBLANK_JUMP;
         gb_disable_irq(gb, IRQ_VBLANK);
     } else if (foo & IRQ_STAT) {
-        gb->cpu->PC = IRQ_STAT_JUMP;
+        gb->cpu.PC = IRQ_STAT_JUMP;
         gb_disable_irq(gb, IRQ_STAT);
     } else if (foo & IRQ_TIMER) {
-        gb->cpu->PC = IRQ_TIMER_JUMP;
+        gb->cpu.PC = IRQ_TIMER_JUMP;
         gb_disable_irq(gb, IRQ_TIMER);
     } else if (foo & IRQ_SERIAL) {
-        gb->cpu->PC = IRQ_SERIAL_JUMP;
+        gb->cpu.PC = IRQ_SERIAL_JUMP;
         gb_disable_irq(gb, IRQ_SERIAL);
     } else if (foo & IRQ_JOYP) {
-        gb->cpu->PC = IRQ_JOYP_JUMP;
+        gb->cpu.PC = IRQ_JOYP_JUMP;
         gb_disable_irq(gb, IRQ_JOYP);
     }
 
@@ -241,23 +241,23 @@ struct gameboy *gb_create() {
 
 
 void *gb_init(struct gameboy *gb) {
-    gb->cpu = malloc(sizeof(struct cpu));
-    if(gb->cpu == NULL) {
-        printf("Failed to allocate memory for cpu\n");
-    }
-    gb->gpu = malloc(sizeof(struct gpu));
-    if(gb->gpu == NULL) {
-        printf("Failed to allocate memory for gpu\n");
-    }
-    gb->apu = malloc(sizeof(struct apu));
-    if(gb->apu == NULL) {
-        printf("Failed to allocate memory for apu\n");
-    }
-    gb->apu->channel_1 = malloc(sizeof(struct channel));
-    gb->apu->channel_2 = malloc(sizeof(struct channel));
-    gb->apu->channel_3 = malloc(sizeof(struct channel));
-    gb->apu->channel_4 = malloc(sizeof(struct channel));
-    
+    // gb->cpu = malloc(sizeof(struct cpu));
+    // if(gb->cpu == NULL) {
+    //     printf("Failed to allocate memory for cpu\n");
+    // }
+    // gb->gpu = malloc(sizeof(struct gpu));
+    // if(gb->gpu == NULL) {
+    //     printf("Failed to allocate memory for gpu\n");
+    // }
+    // gb->apu = malloc(sizeof(struct apu));
+    // if(gb->apu == NULL) {
+    //     printf("Failed to allocate memory for apu\n");
+    // }
+    //gb->apu.channel_1 = malloc(sizeof(struct channel));
+    // gb->apu.channel_2 = malloc(sizeof(struct channel));
+    // gb->apu.channel_3 = malloc(sizeof(struct channel));
+    // gb->apu.channel_4 = malloc(sizeof(struct channel));
+
     gb->mem = malloc(0x10000);
     if(gb->mem == NULL) {
         printf("Failed to allocate memory for mem\n");
@@ -279,13 +279,13 @@ void *gb_init(struct gameboy *gb) {
 }
 
 void gb_free(struct gameboy *gb) {
-    free(gb->cpu);
-    free(gb->gpu);
-    free(gb->apu->channel_1);
-    free(gb->apu->channel_2);
-    free(gb->apu->channel_3);
-    free(gb->apu->channel_4);
-    free(gb->apu);
+    //free(gb->cpu);
+    //free(gb->gpu);
+    // free(gb->apu.channel_1);
+    // free(gb->apu.channel_2);
+    // free(gb->apu.channel_3);
+    // free(gb->apu.channel_4);
+    // free(gb->apu);
     free(gb->mem);
     //free(gb->cart);
     //free(gb->cart_ram);
@@ -354,56 +354,71 @@ void gb_reset(struct gameboy *gb) {
     gb->joypad->state = 0xFF;
     
     /* GPU */
-    gb->gpu->lx = 0;
-    gb->gpu->bg_data = 0;
-    gb->gpu->win_data = 0;
-    gb->gpu->obj_data = 0;
-    gb->gpu->num_obj = 0;
-    gb->gpu->bg_idx = 0;
-    gb->gpu->bg_color = 0;
-    gb->gpu->obj_idx = 0;
-    gb->gpu->obj_color = 0;
-    gb->gpu->obj_priority = 0;
+    gb->gpu.lx = 0;
+    gb->gpu.bg_data = 0;
+    gb->gpu.win_data = 0;
+    gb->gpu.obj_data = 0;
+    gb->gpu.num_obj = 0;
+    gb->gpu.bg_idx = 0;
+    gb->gpu.bg_color = 0;
+    gb->gpu.obj_idx = 0;
+    gb->gpu.obj_color = 0;
+    gb->gpu.obj_priority = 0;
 
     /* APU */
-    gb->apu->channel_1->length_count = 0;
-    gb->apu->channel_1->volume_count = 0;
-    gb->apu->channel_1->square_count = 0;
-    gb->apu->channel_1->volume = 0;
-    gb->apu->channel_1->length = 0;
-    gb->apu->channel_1->length_enable = 0;
-    gb->apu->channel_1->frequency = 0;
-    gb->apu->channel_1->disabled = 0;
-    gb->apu->channel_1->volume_mode = 0;
-    gb->apu->channel_1->volume_steps = 0;
-    gb->apu->channel_1->volume_step_count = 0;
-    gb->apu->channel_1->duty = 0;
-    gb->apu->channel_1->dp = 0;
-    gb->apu->channel_1->recalc = 0;
-    gb->apu->channel_1->addr = NR10;
+    gb->apu.channel_1.length_count = 0;
+    gb->apu.channel_1.volume_count = 0;
+    gb->apu.channel_1.square_count = 0;
+    gb->apu.channel_1.volume = 0;
+    gb->apu.channel_1.length = 0;
+    gb->apu.channel_1.length_enable = 0;
+    gb->apu.channel_1.frequency = 0;
+    gb->apu.channel_1.disabled = 0;
+    gb->apu.channel_1.volume_mode = 0;
+    gb->apu.channel_1.volume_steps = 0;
+    gb->apu.channel_1.volume_step_count = 0;
+    gb->apu.channel_1.duty = 0;
+    gb->apu.channel_1.dp = 0;
+    gb->apu.channel_1.recalc = 0;
+    gb->apu.channel_1.addr = NR10;
 
-    gb->apu->channel_2->length_count = 0;
-    gb->apu->channel_2->volume_count = 0;
-    gb->apu->channel_2->square_count = 0;
-    gb->apu->channel_2->volume = 0;
-    gb->apu->channel_2->length = 0;
-    gb->apu->channel_2->length_enable = 0;
-    gb->apu->channel_2->frequency = 0;
-    gb->apu->channel_2->disabled = 0;
-    gb->apu->channel_2->volume_mode = 0;
-    gb->apu->channel_2->volume_steps = 0;
-    gb->apu->channel_2->volume_step_count = 0;
-    gb->apu->channel_2->duty = 0;
-    gb->apu->channel_2->dp = 0;
-    gb->apu->channel_2->recalc = 0;
-    gb->apu->channel_2->addr = NR20;
-    
-    gb->apu->channel_3->addr = NR30;
-    gb->apu->channel_4->addr = NR40;
+    gb->apu.channel_2.length_count = 0;
+    gb->apu.channel_2.volume_count = 0;
+    gb->apu.channel_2.square_count = 0;
+    gb->apu.channel_2.volume = 0;
+    gb->apu.channel_2.length = 0;
+    gb->apu.channel_2.length_enable = 0;
+    gb->apu.channel_2.frequency = 0;
+    gb->apu.channel_2.disabled = 0;
+    gb->apu.channel_2.volume_mode = 0;
+    gb->apu.channel_2.volume_steps = 0;
+    gb->apu.channel_2.volume_step_count = 0;
+    gb->apu.channel_2.duty = 0;
+    gb->apu.channel_2.dp = 0;
+    gb->apu.channel_2.recalc = 0;
+    gb->apu.channel_2.addr = NR20;
 
-//    gb->apu->channel_1->sweep_count = SWEEP_TIMER;
-//    gb->apu->channel_1->length_count = LENGTH_PERIOD;
-//    gb->apu->channel_1->volume_count = VOLUME_PERIOD;
+    gb->apu.channel_3.length_count = 0;
+    gb->apu.channel_3.volume_count = 0;
+    gb->apu.channel_3.square_count = 0;
+    gb->apu.channel_3.volume = 0;
+    gb->apu.channel_3.length = 0;
+    gb->apu.channel_3.length_enable = 0;
+    gb->apu.channel_3.frequency = 0;
+    gb->apu.channel_3.disabled = 0;
+    gb->apu.channel_3.volume_mode = 0;
+    gb->apu.channel_3.volume_steps = 0;
+    gb->apu.channel_3.volume_step_count = 0;
+    gb->apu.channel_3.duty = 0;
+    gb->apu.channel_3.dp = 0;
+    gb->apu.channel_3.recalc = 0;
+    gb->apu.channel_3.addr = NR30;
+
+    gb->apu.channel_4.addr = NR40;
+
+//    gb->apu.channel_1.sweep_count = SWEEP_TIMER;
+//    gb->apu.channel_1.length_count = LENGTH_PERIOD;
+//    gb->apu.channel_1.volume_count = VOLUME_PERIOD;
     
     gb->ime = 0;
     gb->ime_delay = 0;
@@ -426,12 +441,12 @@ void gb_reset(struct gameboy *gb) {
     gb->dma = 0;
     gb->serial = 0;
     
-    gb->cpu->PC = 0;
-    gb->cpu->SP = STACK_START;
-    gb->cpu->AF = 0x01B0;
-    gb->cpu->BC = 0x0013;
-    gb->cpu->DE = 0x00D8;
-    gb->cpu->HL = 0x014D;
+    gb->cpu.PC = 0;
+    gb->cpu.SP = STACK_START;
+    gb->cpu.AF = 0x01B0;
+    gb->cpu.BC = 0x0013;
+    gb->cpu.DE = 0x00D8;
+    gb->cpu.HL = 0x014D;
     
     gb->mem[LCDC] = 0x91;
     gb->mem[STAT] = 0x85;
@@ -476,7 +491,7 @@ void gb_reset(struct gameboy *gb) {
 
 
 void cpu_log_op(struct gameboy *gb, struct op *op) {
-    printf("%04X: ", gb->cpu->PC);
+    printf("%04X: ", gb->cpu.PC);
     if (op->opcode >= 0xCB00) {
         printf("CB ");
         printf("%02X ", op->opcode & 0xFF);
@@ -492,9 +507,9 @@ void cpu_log_op(struct gameboy *gb, struct op *op) {
 }
 
 void cpu_log_regs(struct gameboy *gb) {
-    printf("\tAF: %04X BC: %04X DE: %04X HL: %04X SP: %04X ", gb->cpu->AF, gb->cpu->BC, gb->cpu->DE, gb->cpu->HL, gb->cpu->SP);
-    printf("ZNHC: %d%d%d%d ", gb->cpu->flags.Z, gb->cpu->flags.N, gb->cpu->flags.H, gb->cpu->flags.C);
-    //printf("(HL): %02X, IF: %02X, LY: %02X LYC: %02X STAT: %02X ", mem_read_u8(gb, gb->cpu->HL), gb->mem[IF], gb->mem[LY], gb->mem[LYC], gb->mem[STAT]);
+    printf("\tAF: %04X BC: %04X DE: %04X HL: %04X SP: %04X ", gb->cpu.AF, gb->cpu.BC, gb->cpu.DE, gb->cpu.HL, gb->cpu.SP);
+    printf("ZNHC: %d%d%d%d ", gb->cpu.flags.Z, gb->cpu.flags.N, gb->cpu.flags.H, gb->cpu.flags.C);
+    //printf("(HL): %02X, IF: %02X, LY: %02X LYC: %02X STAT: %02X ", mem_read_u8(gb, gb->cpu.HL), gb->mem[IF], gb->mem[LY], gb->mem[LYC], gb->mem[STAT]);
     printf("LY: %02X LYC: %02X STAT: %02X c_lcd %03d rom %X ram %X IF %02X IE %02X\n", gb->mem[LY], gb->mem[LYC], gb->mem[STAT], gb->clocks_lcd, gb->rom_bank, gb->ram_bank, gb->mem[IF],gb->mem[IE]);
 }
 
@@ -516,8 +531,8 @@ void print_mem(struct gameboy *gb) {
         printf("\n");
     }
     
-    printf("AF: 0x%04X BC: 0x%04x DE: 0x%04x HL: 0x%04x (HL): 0x%02x", gb->cpu->AF, gb->cpu->BC, gb->cpu->DE, gb->cpu->HL, gb->mem[gb->cpu->HL]);
-    printf("\tZNHC: %d%d%d%d", gb->cpu->flags.Z, gb->cpu->flags.N, gb->cpu->flags.H, gb->cpu->flags.C);
+    printf("AF: 0x%04X BC: 0x%04x DE: 0x%04x HL: 0x%04x (HL): 0x%02x", gb->cpu.AF, gb->cpu.BC, gb->cpu.DE, gb->cpu.HL, gb->mem[gb->cpu.HL]);
+    printf("\tZNHC: %d%d%d%d", gb->cpu.flags.Z, gb->cpu.flags.N, gb->cpu.flags.H, gb->cpu.flags.C);
     
     printf("\njoypad: %02x -> %02x\n", gb->joypad->state, mem_read_u8(gb, P1));
     

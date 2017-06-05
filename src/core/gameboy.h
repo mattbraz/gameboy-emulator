@@ -282,10 +282,10 @@ struct channel {
 };
 
 struct apu {
-    struct channel *channel_1;
-    struct channel *channel_2;
-    struct channel *channel_3;
-    struct channel *channel_4;
+    struct channel channel_1;
+    struct channel channel_2;
+    struct channel channel_3;
+    struct channel channel_4;
 
     // struct channel5 square1;
     // struct channel5 square2;
@@ -372,9 +372,9 @@ struct _regs {
 
 
 struct gameboy {
-    struct cpu *cpu;
-    struct gpu *gpu;
-    struct apu *apu;
+    struct cpu cpu;
+    struct gpu gpu;
+    struct apu apu;
     uint8_t *mem;
 
     uint8_t boot_rom[0x100];
@@ -409,10 +409,12 @@ struct gameboy {
     uint8_t bank_mode;
     uint8_t ram_bank_enable;
 
-    uint8_t dma;
-    uint8_t serial;
-    uint8_t oscillator_stopped;
-    uint8_t clock_stopped;
+    /* Misc */
+    int boot;
+    int dma;
+    int serial;
+    int oscillator_stopped;
+    int clock_stopped;
 
     struct joypad *joypad;
     
@@ -424,9 +426,6 @@ struct gameboy {
     uint32_t clocks_dma;
     uint32_t clocks_serial;
     int clocks_total;
-
-    /* Misc */
-    int boot;
 
     /* Callback function pointers */
     vbl_func_ptr vbl_callback;

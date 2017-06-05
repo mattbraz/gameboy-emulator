@@ -204,10 +204,10 @@ void apu_upd(struct gameboy *gb, int clocks, int clocks_per_sample) {
     uint8_t sample3 = 0;
     uint8_t sample4 = 0;
     
-    struct channel *c1 = gb->apu->channel_1;
-    struct channel *c2 = gb->apu->channel_2;
-    struct channel *c3 = gb->apu->channel_3;
-    struct channel *c4 = gb->apu->channel_4;
+    struct channel *c1 = &gb->apu.channel_1;
+    struct channel *c2 = &gb->apu.channel_2;
+    struct channel *c3 = &gb->apu.channel_3;
+    struct channel *c4 = &gb->apu.channel_4;
     //struct channel *ch = c1;
     
     if (c1->recalc) {

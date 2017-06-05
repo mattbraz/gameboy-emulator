@@ -282,10 +282,10 @@ struct channel {
 };
 
 struct apu {
-    struct channel *channel_1;
-    struct channel *channel_2;
-    struct channel *channel_3;
-    struct channel *channel_4;
+    struct channel channel_1;
+    struct channel channel_2;
+    struct channel channel_3;
+    struct channel channel_4;
 
     // struct channel5 square1;
     // struct channel5 square2;
@@ -372,9 +372,9 @@ struct _regs {
 
 
 struct gameboy {
-    struct cpu *cpu;
-    struct gpu *gpu;
-    struct apu *apu;
+    struct cpu cpu;
+    struct gpu gpu;
+    struct apu apu;
     uint8_t *mem;
 
     uint8_t boot_rom[0x100];

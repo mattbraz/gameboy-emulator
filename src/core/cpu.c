@@ -558,9 +558,9 @@ struct op_def opcl_ext[256] = {
 
 struct op *cpu_get_op(struct gameboy *gb, struct op *op) {
     uint8_t opcd;
-    opcd = mem_read_u8(gb, gb->cpu->PC);
+    opcd = mem_read_u8(gb, gb->cpu.PC);
     if (opcd == 0xCB) {
-        opcd = mem_read_u8(gb, gb->cpu->PC+1);
+        opcd = mem_read_u8(gb, gb->cpu.PC+1);
         op->op_def = &opcl_ext[opcd];
         op->opcode = (0xCB << 8) | opcd;
         // Extended op codes have no operands
@@ -569,9 +569,9 @@ struct op *cpu_get_op(struct gameboy *gb, struct op *op) {
         op->opcode = (0x00 << 8) | opcd;
         // Operands
         if (op->op_def->bytes == 2) {
-            op->immediate.byte = mem_read_u8(gb, gb->cpu->PC+1);
+            op->immediate.byte = mem_read_u8(gb, gb->cpu.PC+1);
         } else if (op->op_def->bytes == 3) {
-            op->immediate.word = mem_read_u16(gb, gb->cpu->PC+1);
+            op->immediate.word = mem_read_u16(gb, gb->cpu.PC+1);
         }
     }
     
@@ -579,22 +579,22 @@ struct op *cpu_get_op(struct gameboy *gb, struct op *op) {
 }
 
 void cpu_exec_op(struct gameboy *gb, struct op *op) {
-    gb->cpu->PC = gb->cpu->PC + op->op_def->bytes;
+    gb->cpu.PC = gb->cpu.PC + op->op_def->bytes;
     
     (*(op->op_def->op_func_ptr))(gb, op);
 }
 
 void cpu_stack_push(struct gameboy *gb, uint16_t val) {
-    mem_write_u8(gb, gb->cpu->SP-1, (val >> 8) & 0xFF);
-    mem_write_u8(gb, gb->cpu->SP-2, (val >> 0) & 0xFF);
-    gb->cpu->SP -= 2;
+    mem_write_u8(gb, gb->cpu.SP-1, (val >> 8) & 0xFF);
+    mem_write_u8(gb, gb->cpu.SP-2, (val >> 0) & 0xFF);
+    gb->cpu.SP -= 2;
 }
 
 uint16_t cpu_stack_pop(struct gameboy *gb) {
     uint16_t val = 0;
-    val |= mem_read_u8(gb, gb->cpu->SP+0) << 0;
-    val |= mem_read_u8(gb, gb->cpu->SP+1) << 8;
-    gb->cpu->SP += 2;
+    val |= mem_read_u8(gb, gb->cpu.SP+0) << 0;
+    val |= mem_read_u8(gb, gb->cpu.SP+1) << 8;
+    gb->cpu.SP += 2;
     return val;
 }
 
@@ -606,26 +606,26 @@ void ILLEGAL_OP(struct gameboy *gb, struct op *op) {
 }
 
 void DAA(struct gameboy *gb, struct op *op) {
-    int16_t A = gb->cpu->A;
+    int16_t A = gb->cpu.A;
     
-    if(gb->cpu->flags.N) {
+    if(gb->cpu.flags.N) {
         /* SUB */
-        if (gb->cpu->flags.H)
+        if (gb->cpu.flags.H)
             A = (A - 0x06) & 0xFF;
-        if (gb->cpu->flags.C)
+        if (gb->cpu.flags.C)
             A -= 0x60;
     } else {
         /* ADD */
-        if (gb->cpu->flags.H || (A & 0x0F) > 0x9)
+        if (gb->cpu.flags.H || (A & 0x0F) > 0x9)
             A += 0x06;
-        if(gb->cpu->flags.C || A > 0x9F)
+        if(gb->cpu.flags.C || A > 0x9F)
             A += 0x60;
     }
-    gb->cpu->A = A & 0xFF;
+    gb->cpu.A = A & 0xFF;
     
-    if (A & 0x100) gb->cpu->flags.C = 1;
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.Z = (!gb->cpu->A);
+    if (A & 0x100) gb->cpu.flags.C = 1;
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.Z = (!gb->cpu.A);
     
     gb_add_clocks(gb, 4);
 }
@@ -652,59 +652,59 @@ void HALT(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 4);
 }
 void CPL(struct gameboy *gb, struct op *op) {
-    gb->cpu->flags.N = 1;
-    gb->cpu->flags.H = 1;
-    gb->cpu->A = ~gb->cpu->A;
+    gb->cpu.flags.N = 1;
+    gb->cpu.flags.H = 1;
+    gb->cpu.A = ~gb->cpu.A;
     gb_add_clocks(gb, 4);
 }
 void SCF(struct gameboy *gb, struct op *op) {
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.C = 1;
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.C = 1;
     gb_add_clocks(gb, 4);
 }
 void CCF(struct gameboy *gb, struct op *op) {
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.C ^= 1;
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.C ^= 1;
     gb_add_clocks(gb, 4);
 }
 
 void JP_a16(struct gameboy *gb, struct op *op) {
-	gb->cpu->PC = op->immediate.word;
+	gb->cpu.PC = op->immediate.word;
     gb_add_clocks(gb, 16);
 }
 void JP_HL(struct gameboy *gb, struct op *op) {
-	gb->cpu->PC = gb->cpu->HL;
+	gb->cpu.PC = gb->cpu.HL;
     gb_add_clocks(gb, 4);
 }
 void JP_NZ_a16(struct gameboy *gb, struct op *op) {
-	if (!gb->cpu->flags.Z) {
-		gb->cpu->PC = op->immediate.word;
+	if (!gb->cpu.flags.Z) {
+		gb->cpu.PC = op->immediate.word;
         gb_add_clocks(gb, 16);
     } else {
         gb_add_clocks(gb, 12);
     }
 }
 void JP_Z_a16(struct gameboy *gb, struct op *op) {
-	if (gb->cpu->flags.Z) {
-		gb->cpu->PC = op->immediate.word;
+	if (gb->cpu.flags.Z) {
+		gb->cpu.PC = op->immediate.word;
         gb_add_clocks(gb, 16);
     } else {
         gb_add_clocks(gb, 12);
     }
 }
 void JP_NC_a16(struct gameboy *gb, struct op *op) {
-	if (!gb->cpu->flags.C) {
-		gb->cpu->PC = op->immediate.word;
+	if (!gb->cpu.flags.C) {
+		gb->cpu.PC = op->immediate.word;
         gb_add_clocks(gb, 16);
     } else {
         gb_add_clocks(gb, 12);
     }
 }
 void JP_C_a16(struct gameboy *gb, struct op *op) {
-	if (gb->cpu->flags.C) {
-		gb->cpu->PC = op->immediate.word;
+	if (gb->cpu.flags.C) {
+		gb->cpu.PC = op->immediate.word;
         gb_add_clocks(gb, 16);
     } else {
         gb_add_clocks(gb, 12);
@@ -712,40 +712,40 @@ void JP_C_a16(struct gameboy *gb, struct op *op) {
 }
 void JR_r8(struct gameboy *gb, struct op *op) {
 	int8_t ofs = op->immediate.lo;
-	gb->cpu->PC += ofs;
+	gb->cpu.PC += ofs;
     gb_add_clocks(gb, 12);
 }
 void JR_NZ_r8(struct gameboy *gb, struct op *op) {
-	if (!gb->cpu->flags.Z) {
+	if (!gb->cpu.flags.Z) {
 		int8_t ofs = op->immediate.lo;
-		gb->cpu->PC += ofs;
+		gb->cpu.PC += ofs;
         gb_add_clocks(gb, 12);
     } else {
         gb_add_clocks(gb, 8);
     }
 }
 void JR_Z_r8(struct gameboy *gb, struct op *op) {
-	if (gb->cpu->flags.Z) {
+	if (gb->cpu.flags.Z) {
 		int8_t ofs = op->immediate.lo;
-		gb->cpu->PC += ofs;
+		gb->cpu.PC += ofs;
         gb_add_clocks(gb, 12);
     } else {
         gb_add_clocks(gb, 8);
     }
 }
 void JR_NC_r8(struct gameboy *gb, struct op *op) {
-	if (!gb->cpu->flags.C) {
+	if (!gb->cpu.flags.C) {
 		int8_t ofs = op->immediate.lo;
-		gb->cpu->PC += ofs;
+		gb->cpu.PC += ofs;
         gb_add_clocks(gb, 12);
     } else {
         gb_add_clocks(gb, 8);
     }
 }
 void JR_C_r8(struct gameboy *gb, struct op *op) {
-	if (gb->cpu->flags.C) {
+	if (gb->cpu.flags.C) {
 		int8_t ofs = op->immediate.lo;
-		gb->cpu->PC += ofs;
+		gb->cpu.PC += ofs;
         gb_add_clocks(gb, 12);
     } else {
         gb_add_clocks(gb, 8);
@@ -756,42 +756,42 @@ void CALL_a16(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 4);
     gb_add_clocks(gb, 4);
     uint16_t addr;
-    addr  = mem_read_u8(gb, gb->cpu->PC-2);
+    addr  = mem_read_u8(gb, gb->cpu.PC-2);
     gb_add_clocks(gb, 4);
-    addr |= mem_read_u8(gb, gb->cpu->PC-1) << 8;
+    addr |= mem_read_u8(gb, gb->cpu.PC-1) << 8;
     gb_add_clocks(gb, 4);
     
-    mem_write_u8(gb, gb->cpu->SP-1, (gb->cpu->PC >> 8) & 0xFF);
+    mem_write_u8(gb, gb->cpu.SP-1, (gb->cpu.PC >> 8) & 0xFF);
     gb_add_clocks(gb, 4);
-    mem_write_u8(gb, gb->cpu->SP-2, (gb->cpu->PC >> 0) & 0xFF);
-    gb->cpu->SP -= 2;
+    mem_write_u8(gb, gb->cpu.SP-2, (gb->cpu.PC >> 0) & 0xFF);
+    gb->cpu.SP -= 2;
 
     gb_add_clocks(gb, 4);
-    gb->cpu->PC = addr;
+    gb->cpu.PC = addr;
 }
 void CALL_NZ_a16(struct gameboy *gb, struct op *op) {
-	if (!gb->cpu->flags.Z) {
+	if (!gb->cpu.flags.Z) {
 		CALL_a16(gb, op);
     } else {
         gb_add_clocks(gb, 12);
     }
 }
 void CALL_Z_a16(struct gameboy *gb, struct op *op) {
-	if (gb->cpu->flags.Z) {
+	if (gb->cpu.flags.Z) {
 		CALL_a16(gb, op);
     } else {
         gb_add_clocks(gb, 12);
     }
 }
 void CALL_NC_a16(struct gameboy *gb, struct op *op) {
-	if (!gb->cpu->flags.C) {
+	if (!gb->cpu.flags.C) {
 		CALL_a16(gb, op);
     } else {
         gb_add_clocks(gb, 12);
     }
 }
 void CALL_C_a16(struct gameboy *gb, struct op *op) {
-	if (gb->cpu->flags.C) {
+	if (gb->cpu.flags.C) {
 		CALL_a16(gb, op);
     } else {
         gb_add_clocks(gb, 12);
@@ -800,11 +800,11 @@ void CALL_C_a16(struct gameboy *gb, struct op *op) {
 
 void RET(struct gameboy *gb, struct op *op) {
     uint16_t addr = cpu_stack_pop(gb);
-    gb->cpu->PC = addr;
+    gb->cpu.PC = addr;
     gb_add_clocks(gb, 16);
 }
 void RET_NZ(struct gameboy *gb, struct op *op) {
-	if (!gb->cpu->flags.Z) {
+	if (!gb->cpu.flags.Z) {
 		RET(gb, op);
         gb_add_clocks(gb, 4);  /* Plus the 16 in RET() */
     } else {
@@ -812,7 +812,7 @@ void RET_NZ(struct gameboy *gb, struct op *op) {
     }
 }
 void RET_Z(struct gameboy *gb, struct op *op) {
-	if (gb->cpu->flags.Z) {
+	if (gb->cpu.flags.Z) {
 		RET(gb, op);
         gb_add_clocks(gb, 4);  /* Plus the 16 in RET() */
     } else {
@@ -820,7 +820,7 @@ void RET_Z(struct gameboy *gb, struct op *op) {
     }
 }
 void RET_NC(struct gameboy *gb, struct op *op) {
-	if (!gb->cpu->flags.C) {
+	if (!gb->cpu.flags.C) {
 		RET(gb, op);
         gb_add_clocks(gb, 4);  /* Plus the 16 in RET() */
     } else {
@@ -828,7 +828,7 @@ void RET_NC(struct gameboy *gb, struct op *op) {
     }
 }
 void RET_C(struct gameboy *gb, struct op *op) {
-	if (gb->cpu->flags.C) {
+	if (gb->cpu.flags.C) {
 		RET(gb, op);
         gb_add_clocks(gb, 4);  /* Plus the 16 in RET() */
     } else {
@@ -842,8 +842,8 @@ void RETI(struct gameboy *gb, struct op *op) {
 }
 
 void RST(struct gameboy *gb, uint8_t low) {
-    cpu_stack_push(gb, gb->cpu->PC);
-    gb->cpu->PC = 0x0000 | low;
+    cpu_stack_push(gb, gb->cpu.PC);
+    gb->cpu.PC = 0x0000 | low;
     gb_add_clocks(gb, 16);
 }
 
@@ -873,490 +873,490 @@ void RST_38H(struct gameboy *gb, struct op *op) {
 }
 
 void PUSH_BC(struct gameboy *gb, struct op *op) {
-    cpu_stack_push(gb, gb->cpu->BC);
+    cpu_stack_push(gb, gb->cpu.BC);
     gb_add_clocks(gb, 16);
 }
 void PUSH_DE(struct gameboy *gb, struct op *op) {
-    cpu_stack_push(gb, gb->cpu->DE);
+    cpu_stack_push(gb, gb->cpu.DE);
     gb_add_clocks(gb, 16);
 }
 void PUSH_HL(struct gameboy *gb, struct op *op) {
-    cpu_stack_push(gb, gb->cpu->HL);
+    cpu_stack_push(gb, gb->cpu.HL);
     gb_add_clocks(gb, 16);
 }
 void PUSH_AF(struct gameboy *gb, struct op *op) {
-    cpu_stack_push(gb, gb->cpu->AF);
+    cpu_stack_push(gb, gb->cpu.AF);
     gb_add_clocks(gb, 16);
 }
 
 void POP_BC(struct gameboy *gb, struct op *op) {
-    gb->cpu->B = mem_read_u8(gb, gb->cpu->SP+1);
-    gb->cpu->C = mem_read_u8(gb, gb->cpu->SP);
-	gb->cpu->SP += 2;
+    gb->cpu.B = mem_read_u8(gb, gb->cpu.SP+1);
+    gb->cpu.C = mem_read_u8(gb, gb->cpu.SP);
+	gb->cpu.SP += 2;
     gb_add_clocks(gb, 12);
 }
 void POP_DE(struct gameboy *gb, struct op *op) {
-    gb->cpu->D = mem_read_u8(gb, gb->cpu->SP+1);
-    gb->cpu->E = mem_read_u8(gb, gb->cpu->SP);
-	gb->cpu->SP += 2;
+    gb->cpu.D = mem_read_u8(gb, gb->cpu.SP+1);
+    gb->cpu.E = mem_read_u8(gb, gb->cpu.SP);
+	gb->cpu.SP += 2;
     gb_add_clocks(gb, 12);
 }
 void POP_HL(struct gameboy *gb, struct op *op) {
-    gb->cpu->H = mem_read_u8(gb, gb->cpu->SP+1);
-    gb->cpu->L = mem_read_u8(gb, gb->cpu->SP);
-	gb->cpu->SP += 2;
+    gb->cpu.H = mem_read_u8(gb, gb->cpu.SP+1);
+    gb->cpu.L = mem_read_u8(gb, gb->cpu.SP);
+	gb->cpu.SP += 2;
     gb_add_clocks(gb, 12);
 }
 void POP_AF(struct gameboy *gb, struct op *op) {
-    gb->cpu->A = mem_read_u8(gb, gb->cpu->SP+1);
-    gb->cpu->F = mem_read_u8(gb, gb->cpu->SP);
-	gb->cpu->SP += 2;
+    gb->cpu.A = mem_read_u8(gb, gb->cpu.SP+1);
+    gb->cpu.F = mem_read_u8(gb, gb->cpu.SP);
+	gb->cpu.SP += 2;
     /* Special case - lower nibble of F is always 0 */
-    gb->cpu->F &= ~0xF;
+    gb->cpu.F &= ~0xF;
     gb_add_clocks(gb, 12);
 }
 
 void ADD_r_r(struct gameboy *gb, uint8_t *r1, uint8_t r2) {
-	gb->cpu->flags.Z = 0;
-	gb->cpu->flags.N = 0;
+	gb->cpu.flags.Z = 0;
+	gb->cpu.flags.N = 0;
 	uint16_t result = *r1 + r2;
-    gb->cpu->flags.C = result >> 8;
-    gb->cpu->flags.H = ((*r1 & 0x0F) + (r2 & 0x0F) > 0x0F);
+    gb->cpu.flags.C = result >> 8;
+    gb->cpu.flags.H = ((*r1 & 0x0F) + (r2 & 0x0F) > 0x0F);
 	*r1 = result;
-    if (!*r1) gb->cpu->flags.Z = 1;
+    if (!*r1) gb->cpu.flags.Z = 1;
 }
 void ADD_A_B(struct gameboy *gb, struct op *op) {
-	ADD_r_r(gb, &gb->cpu->A, gb->cpu->B);
+	ADD_r_r(gb, &gb->cpu.A, gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void ADD_A_C(struct gameboy *gb, struct op *op) {
-	ADD_r_r(gb, &gb->cpu->A, gb->cpu->C);
+	ADD_r_r(gb, &gb->cpu.A, gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void ADD_A_D(struct gameboy *gb, struct op *op) {
-	ADD_r_r(gb, &gb->cpu->A, gb->cpu->D);
+	ADD_r_r(gb, &gb->cpu.A, gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void ADD_A_E(struct gameboy *gb, struct op *op) {
-	ADD_r_r(gb, &gb->cpu->A, gb->cpu->E);
+	ADD_r_r(gb, &gb->cpu.A, gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void ADD_A_H(struct gameboy *gb, struct op *op) {
-	ADD_r_r(gb, &gb->cpu->A, gb->cpu->H);
+	ADD_r_r(gb, &gb->cpu.A, gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void ADD_A_L(struct gameboy *gb, struct op *op) {
-	ADD_r_r(gb, &gb->cpu->A, gb->cpu->L);
+	ADD_r_r(gb, &gb->cpu.A, gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void ADD_A_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    ADD_r_r(gb, &gb->cpu->A, mem_read_u8(gb, gb->cpu->HL));
+    ADD_r_r(gb, &gb->cpu.A, mem_read_u8(gb, gb->cpu.HL));
 }
 void ADD_A_A(struct gameboy *gb, struct op *op) {
-	ADD_r_r(gb, &gb->cpu->A, gb->cpu->A);
+	ADD_r_r(gb, &gb->cpu.A, gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void ADD_A_d8(struct gameboy *gb, struct op *op) {
-	ADD_r_r(gb, &gb->cpu->A, op->immediate.lo);
+	ADD_r_r(gb, &gb->cpu.A, op->immediate.lo);
     gb_add_clocks(gb, 8);
 }
 void ADD_a16_a16(struct gameboy *gb, uint16_t *r1, uint16_t *r2) {
-	gb->cpu->flags.N = 0;
+	gb->cpu.flags.N = 0;
     uint32_t result = *r1 + *r2;
 	/* Bit 15 carry */
-    gb->cpu->flags.C = result >> 16;
+    gb->cpu.flags.C = result >> 16;
     /* Bit 11 carry */
-    gb->cpu->flags.H = ((*r1 & 0x0FFF) + (*r2 & 0x0FFF) > 0x0FFF);
+    gb->cpu.flags.H = ((*r1 & 0x0FFF) + (*r2 & 0x0FFF) > 0x0FFF);
     *r1 = result;
 }
 void ADD_HL_BC(struct gameboy *gb, struct op *op) {
-	ADD_a16_a16(gb, &gb->cpu->HL, &gb->cpu->BC);
+	ADD_a16_a16(gb, &gb->cpu.HL, &gb->cpu.BC);
     gb_add_clocks(gb, 8);
 }
 void ADD_HL_DE(struct gameboy *gb, struct op *op) {
-	ADD_a16_a16(gb, &gb->cpu->HL, &gb->cpu->DE);
+	ADD_a16_a16(gb, &gb->cpu.HL, &gb->cpu.DE);
     gb_add_clocks(gb, 8);
 }
 void ADD_HL_HL(struct gameboy *gb, struct op *op) {
-	ADD_a16_a16(gb, &gb->cpu->HL, &gb->cpu->HL);
+	ADD_a16_a16(gb, &gb->cpu.HL, &gb->cpu.HL);
     gb_add_clocks(gb, 8);
 }
 void ADD_HL_SP(struct gameboy *gb, struct op *op) {
-	ADD_a16_a16(gb, &gb->cpu->HL, &gb->cpu->SP);
+	ADD_a16_a16(gb, &gb->cpu.HL, &gb->cpu.SP);
     gb_add_clocks(gb, 8);
 }
 void ADD_SP_r8(struct gameboy *gb, struct op *op) {
-	gb->cpu->flags.Z = 0;
-	gb->cpu->flags.N = 0;
+	gb->cpu.flags.Z = 0;
+	gb->cpu.flags.N = 0;
     int8_t d = op->immediate.lo;
-    int32_t result = gb->cpu->SP + d;
+    int32_t result = gb->cpu.SP + d;
 	/* Bit 7 carry */
-    gb->cpu->flags.C = ((gb->cpu->SP & 0x0FF) + ((int8_t) op->immediate.lo & 0x0FF) > 0x0FF);
+    gb->cpu.flags.C = ((gb->cpu.SP & 0x0FF) + ((int8_t) op->immediate.lo & 0x0FF) > 0x0FF);
     /* Bit 3 carry */
-    gb->cpu->flags.H = ((gb->cpu->SP & 0x0F) + ((int8_t) op->immediate.lo & 0x0F) > 0x0F);
-    gb->cpu->SP = result;
+    gb->cpu.flags.H = ((gb->cpu.SP & 0x0F) + ((int8_t) op->immediate.lo & 0x0F) > 0x0F);
+    gb->cpu.SP = result;
     gb_add_clocks(gb, 16);
 }
 
 void ADC_r_r(struct gameboy *gb, uint8_t *r1, uint8_t r2) {
-    gb->cpu->flags.Z = 0;
-    gb->cpu->flags.N = 0;
-    uint16_t result = *r1 + r2 + gb->cpu->flags.C;
-    gb->cpu->flags.H = ((*r1 & 0x0F) + (r2 & 0x0F) + gb->cpu->flags.C > 0x0F);
-    gb->cpu->flags.C = result >> 8;
+    gb->cpu.flags.Z = 0;
+    gb->cpu.flags.N = 0;
+    uint16_t result = *r1 + r2 + gb->cpu.flags.C;
+    gb->cpu.flags.H = ((*r1 & 0x0F) + (r2 & 0x0F) + gb->cpu.flags.C > 0x0F);
+    gb->cpu.flags.C = result >> 8;
     *r1 = result;
-	if (!*r1) gb->cpu->flags.Z = 1;
+	if (!*r1) gb->cpu.flags.Z = 1;
 }
 void ADC_A_B(struct gameboy *gb, struct op *op) {
-	ADC_r_r(gb, &gb->cpu->A, gb->cpu->B);
+	ADC_r_r(gb, &gb->cpu.A, gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void ADC_A_C(struct gameboy *gb, struct op *op) {
-	ADC_r_r(gb, &gb->cpu->A, gb->cpu->C);
+	ADC_r_r(gb, &gb->cpu.A, gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void ADC_A_D(struct gameboy *gb, struct op *op) {
-	ADC_r_r(gb, &gb->cpu->A, gb->cpu->D);
+	ADC_r_r(gb, &gb->cpu.A, gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void ADC_A_E(struct gameboy *gb, struct op *op) {
-	ADC_r_r(gb, &gb->cpu->A, gb->cpu->E);
+	ADC_r_r(gb, &gb->cpu.A, gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void ADC_A_H(struct gameboy *gb, struct op *op) {
-	ADC_r_r(gb, &gb->cpu->A, gb->cpu->H);
+	ADC_r_r(gb, &gb->cpu.A, gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void ADC_A_L(struct gameboy *gb, struct op *op) {
-	ADC_r_r(gb, &gb->cpu->A, gb->cpu->L);
+	ADC_r_r(gb, &gb->cpu.A, gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void ADC_A_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    ADC_r_r(gb, &gb->cpu->A, mem_read_u8(gb, gb->cpu->HL));
+    ADC_r_r(gb, &gb->cpu.A, mem_read_u8(gb, gb->cpu.HL));
 }
 void ADC_A_A(struct gameboy *gb, struct op *op) {
-	ADC_r_r(gb, &gb->cpu->A, gb->cpu->A);
+	ADC_r_r(gb, &gb->cpu.A, gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void ADC_A_d8(struct gameboy *gb, struct op *op) {
-	ADC_r_r(gb, &gb->cpu->A, op->immediate.lo);
+	ADC_r_r(gb, &gb->cpu.A, op->immediate.lo);
     gb_add_clocks(gb, 8);
 }
 
 void SUB_r_r(struct gameboy *gb, uint8_t *r1, uint8_t r2) {
-	gb->cpu->flags.Z = 0;
-	gb->cpu->flags.N = 1;
+	gb->cpu.flags.Z = 0;
+	gb->cpu.flags.N = 1;
     uint16_t result = *r1 - r2;
-    gb->cpu->flags.C = result >> 8;
-    gb->cpu->flags.H = ((*r1 & 0x0F) - (r2 & 0x0F) < 0);
+    gb->cpu.flags.C = result >> 8;
+    gb->cpu.flags.H = ((*r1 & 0x0F) - (r2 & 0x0F) < 0);
     *r1 = result;
-	if (!*r1) gb->cpu->flags.Z = 1;
+	if (!*r1) gb->cpu.flags.Z = 1;
 }
 
 void SUB_A_B(struct gameboy *gb, struct op *op) {
-	SUB_r_r(gb, &gb->cpu->A, gb->cpu->B);
+	SUB_r_r(gb, &gb->cpu.A, gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void SUB_A_C(struct gameboy *gb, struct op *op) {
-	SUB_r_r(gb, &gb->cpu->A, gb->cpu->C);
+	SUB_r_r(gb, &gb->cpu.A, gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void SUB_A_D(struct gameboy *gb, struct op *op) {
-	SUB_r_r(gb, &gb->cpu->A, gb->cpu->D);
+	SUB_r_r(gb, &gb->cpu.A, gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void SUB_A_E(struct gameboy *gb, struct op *op) {
-	SUB_r_r(gb, &gb->cpu->A, gb->cpu->E);
+	SUB_r_r(gb, &gb->cpu.A, gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void SUB_A_H(struct gameboy *gb, struct op *op) {
-	SUB_r_r(gb, &gb->cpu->A, gb->cpu->H);
+	SUB_r_r(gb, &gb->cpu.A, gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void SUB_A_L(struct gameboy *gb, struct op *op) {
-	SUB_r_r(gb, &gb->cpu->A, gb->cpu->L);
+	SUB_r_r(gb, &gb->cpu.A, gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void SUB_A_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    SUB_r_r(gb, &gb->cpu->A, mem_read_u8(gb, gb->cpu->HL));
+    SUB_r_r(gb, &gb->cpu.A, mem_read_u8(gb, gb->cpu.HL));
 }
 void SUB_A_A(struct gameboy *gb, struct op *op) {
-	SUB_r_r(gb, &gb->cpu->A, gb->cpu->A);
+	SUB_r_r(gb, &gb->cpu.A, gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void SUB_A_d8(struct gameboy *gb, struct op *op) {
-	SUB_r_r(gb, &gb->cpu->A, op->immediate.lo);
+	SUB_r_r(gb, &gb->cpu.A, op->immediate.lo);
     gb_add_clocks(gb, 8);
 }
 
 void SBC_r_r(struct gameboy *gb, uint8_t *r1, uint8_t r2) {
-    gb->cpu->flags.Z = 0;
-    gb->cpu->flags.N = 1;
-    uint16_t result = *r1 - r2 - gb->cpu->flags.C;
-    gb->cpu->flags.H = ((*r1 & 0x0F) - (r2 & 0x0F) - gb->cpu->flags.C < 0);
-    gb->cpu->flags.C = result >> 8;
+    gb->cpu.flags.Z = 0;
+    gb->cpu.flags.N = 1;
+    uint16_t result = *r1 - r2 - gb->cpu.flags.C;
+    gb->cpu.flags.H = ((*r1 & 0x0F) - (r2 & 0x0F) - gb->cpu.flags.C < 0);
+    gb->cpu.flags.C = result >> 8;
     *r1 = result;
-	if (!*r1) gb->cpu->flags.Z = 1;
+	if (!*r1) gb->cpu.flags.Z = 1;
 }
 void SBC_A_B(struct gameboy *gb, struct op *op) {
-	SBC_r_r(gb, &gb->cpu->A, gb->cpu->B);
+	SBC_r_r(gb, &gb->cpu.A, gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void SBC_A_C(struct gameboy *gb, struct op *op) {
-	SBC_r_r(gb, &gb->cpu->A, gb->cpu->C);
+	SBC_r_r(gb, &gb->cpu.A, gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void SBC_A_D(struct gameboy *gb, struct op *op) {
-	SBC_r_r(gb, &gb->cpu->A, gb->cpu->D);
+	SBC_r_r(gb, &gb->cpu.A, gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void SBC_A_E(struct gameboy *gb, struct op *op) {
-	SBC_r_r(gb, &gb->cpu->A, gb->cpu->E);
+	SBC_r_r(gb, &gb->cpu.A, gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void SBC_A_H(struct gameboy *gb, struct op *op) {
-	SBC_r_r(gb, &gb->cpu->A, gb->cpu->H);
+	SBC_r_r(gb, &gb->cpu.A, gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void SBC_A_L(struct gameboy *gb, struct op *op) {
-	SBC_r_r(gb, &gb->cpu->A, gb->cpu->L);
+	SBC_r_r(gb, &gb->cpu.A, gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void SBC_A_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    SBC_r_r(gb, &gb->cpu->A, mem_read_u8(gb, gb->cpu->HL));
+    SBC_r_r(gb, &gb->cpu.A, mem_read_u8(gb, gb->cpu.HL));
 }
 void SBC_A_A(struct gameboy *gb, struct op *op) {
-	SBC_r_r(gb, &gb->cpu->A, gb->cpu->A);
+	SBC_r_r(gb, &gb->cpu.A, gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void SBC_A_d8(struct gameboy *gb, struct op *op) {
-	SBC_r_r(gb, &gb->cpu->A, op->immediate.lo);
+	SBC_r_r(gb, &gb->cpu.A, op->immediate.lo);
     gb_add_clocks(gb, 8);
 }
 
 void AND_r_r(struct gameboy *gb, uint8_t *r1, uint8_t r2) {
-	gb->cpu->flags.Z = 0;
-	gb->cpu->flags.H = 1;
-	gb->cpu->flags.N = 0;
-	gb->cpu->flags.C = 0;
+	gb->cpu.flags.Z = 0;
+	gb->cpu.flags.H = 1;
+	gb->cpu.flags.N = 0;
+	gb->cpu.flags.C = 0;
 	*r1 &= r2;
-	if (!*r1) gb->cpu->flags.Z = 1;
+	if (!*r1) gb->cpu.flags.Z = 1;
 }
 void AND_B(struct gameboy *gb, struct op *op) {
-	AND_r_r(gb, &gb->cpu->A, gb->cpu->B);
+	AND_r_r(gb, &gb->cpu.A, gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void AND_C(struct gameboy *gb, struct op *op) {
-	AND_r_r(gb, &gb->cpu->A, gb->cpu->C);
+	AND_r_r(gb, &gb->cpu.A, gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void AND_D(struct gameboy *gb, struct op *op) {
-	AND_r_r(gb, &gb->cpu->A, gb->cpu->D);
+	AND_r_r(gb, &gb->cpu.A, gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void AND_E(struct gameboy *gb, struct op *op) {
-	AND_r_r(gb, &gb->cpu->A, gb->cpu->E);
+	AND_r_r(gb, &gb->cpu.A, gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void AND_H(struct gameboy *gb, struct op *op) {
-	AND_r_r(gb, &gb->cpu->A, gb->cpu->H);
+	AND_r_r(gb, &gb->cpu.A, gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void AND_L(struct gameboy *gb, struct op *op) {
-	AND_r_r(gb, &gb->cpu->A, gb->cpu->L);
+	AND_r_r(gb, &gb->cpu.A, gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void AND_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    AND_r_r(gb, &gb->cpu->A, mem_read_u8(gb, gb->cpu->HL));
+    AND_r_r(gb, &gb->cpu.A, mem_read_u8(gb, gb->cpu.HL));
 }
 void AND_A(struct gameboy *gb, struct op *op) {
-	AND_r_r(gb, &gb->cpu->A, gb->cpu->A);
+	AND_r_r(gb, &gb->cpu.A, gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void AND_A_d8(struct gameboy *gb, struct op *op) {
-	AND_r_r(gb, &gb->cpu->A, op->immediate.lo);
+	AND_r_r(gb, &gb->cpu.A, op->immediate.lo);
     gb_add_clocks(gb, 8);
 }
 
 void XOR_r_r(struct gameboy *gb, uint8_t *r1, uint8_t r2) {
-	gb->cpu->flags.Z = 0;
-	gb->cpu->flags.H = 0;
-	gb->cpu->flags.N = 0;
-	gb->cpu->flags.C = 0;
+	gb->cpu.flags.Z = 0;
+	gb->cpu.flags.H = 0;
+	gb->cpu.flags.N = 0;
+	gb->cpu.flags.C = 0;
 	*r1 ^= r2;
-	if (!*r1) gb->cpu->flags.Z = 1;
+	if (!*r1) gb->cpu.flags.Z = 1;
 }
 void XOR_B(struct gameboy *gb, struct op *op) {
-	XOR_r_r(gb, &gb->cpu->A, gb->cpu->B);
+	XOR_r_r(gb, &gb->cpu.A, gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void XOR_C(struct gameboy *gb, struct op *op) {
-	XOR_r_r(gb, &gb->cpu->A, gb->cpu->C);
+	XOR_r_r(gb, &gb->cpu.A, gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void XOR_D(struct gameboy *gb, struct op *op) {
-	XOR_r_r(gb, &gb->cpu->A, gb->cpu->D);
+	XOR_r_r(gb, &gb->cpu.A, gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void XOR_E(struct gameboy *gb, struct op *op) {
-	XOR_r_r(gb, &gb->cpu->A, gb->cpu->E);
+	XOR_r_r(gb, &gb->cpu.A, gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void XOR_H(struct gameboy *gb, struct op *op) {
-	XOR_r_r(gb, &gb->cpu->A, gb->cpu->H);
+	XOR_r_r(gb, &gb->cpu.A, gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void XOR_L(struct gameboy *gb, struct op *op) {
-	XOR_r_r(gb, &gb->cpu->A, gb->cpu->L);
+	XOR_r_r(gb, &gb->cpu.A, gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void XOR_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    XOR_r_r(gb, &gb->cpu->A, mem_read_u8(gb, gb->cpu->HL));
+    XOR_r_r(gb, &gb->cpu.A, mem_read_u8(gb, gb->cpu.HL));
 }
 void XOR_A(struct gameboy *gb, struct op *op) {
-	XOR_r_r(gb, &gb->cpu->A, gb->cpu->A);
+	XOR_r_r(gb, &gb->cpu.A, gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void XOR_A_d8(struct gameboy *gb, struct op *op) {
-	XOR_r_r(gb, &gb->cpu->A, op->immediate.lo);
+	XOR_r_r(gb, &gb->cpu.A, op->immediate.lo);
     gb_add_clocks(gb, 8);
 }
 
 void OR_r_r(struct gameboy *gb, uint8_t *r1, uint8_t r2) {
-	gb->cpu->flags.Z = 0;
-	gb->cpu->flags.H = 0;
-	gb->cpu->flags.N = 0;
-	gb->cpu->flags.C = 0;
+	gb->cpu.flags.Z = 0;
+	gb->cpu.flags.H = 0;
+	gb->cpu.flags.N = 0;
+	gb->cpu.flags.C = 0;
 	*r1 |= r2;
-	if (!*r1) gb->cpu->flags.Z = 1;
+	if (!*r1) gb->cpu.flags.Z = 1;
 }
 void OR_B(struct gameboy *gb, struct op *op) {
-	OR_r_r(gb, &gb->cpu->A, gb->cpu->B);
+	OR_r_r(gb, &gb->cpu.A, gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void OR_C(struct gameboy *gb, struct op *op) {
-	OR_r_r(gb, &gb->cpu->A, gb->cpu->C);
+	OR_r_r(gb, &gb->cpu.A, gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void OR_D(struct gameboy *gb, struct op *op) {
-	OR_r_r(gb, &gb->cpu->A, gb->cpu->D);
+	OR_r_r(gb, &gb->cpu.A, gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void OR_E(struct gameboy *gb, struct op *op) {
-	OR_r_r(gb, &gb->cpu->A, gb->cpu->E);
+	OR_r_r(gb, &gb->cpu.A, gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void OR_H(struct gameboy *gb, struct op *op) {
-    OR_r_r(gb, &gb->cpu->A, gb->cpu->H);
+    OR_r_r(gb, &gb->cpu.A, gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void OR_L(struct gameboy *gb, struct op *op) {
-    OR_r_r(gb, &gb->cpu->A, gb->cpu->L);
+    OR_r_r(gb, &gb->cpu.A, gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void OR_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    OR_r_r(gb, &gb->cpu->A, mem_read_u8(gb, gb->cpu->HL));
+    OR_r_r(gb, &gb->cpu.A, mem_read_u8(gb, gb->cpu.HL));
 }
 void OR_A(struct gameboy *gb, struct op *op) {
-	OR_r_r(gb, &gb->cpu->A, gb->cpu->A);
+	OR_r_r(gb, &gb->cpu.A, gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void OR_A_d8(struct gameboy *gb, struct op *op) {
-	OR_r_r(gb, &gb->cpu->A, op->immediate.lo);
+	OR_r_r(gb, &gb->cpu.A, op->immediate.lo);
     gb_add_clocks(gb, 8);
 }
 
 void CP_r_r(struct gameboy *gb, uint8_t *r1, uint8_t r2) {
     int16_t res = *r1 - r2;
-	gb->cpu->flags.Z = ((uint8_t) res == 0);
-    gb->cpu->flags.N = 1;
-	gb->cpu->flags.H = ((*r1 & 0x0F) - (r2 & 0x0F) < 0);
-	gb->cpu->flags.C = res >> 8;
+	gb->cpu.flags.Z = ((uint8_t) res == 0);
+    gb->cpu.flags.N = 1;
+	gb->cpu.flags.H = ((*r1 & 0x0F) - (r2 & 0x0F) < 0);
+	gb->cpu.flags.C = res >> 8;
 }
 void CP_B(struct gameboy *gb, struct op *op) {
-	CP_r_r(gb, &gb->cpu->A, gb->cpu->B);
+	CP_r_r(gb, &gb->cpu.A, gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void CP_C(struct gameboy *gb, struct op *op) {
-	CP_r_r(gb, &gb->cpu->A, gb->cpu->C);
+	CP_r_r(gb, &gb->cpu.A, gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void CP_D(struct gameboy *gb, struct op *op) {
-	CP_r_r(gb, &gb->cpu->A, gb->cpu->D);
+	CP_r_r(gb, &gb->cpu.A, gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void CP_E(struct gameboy *gb, struct op *op) {
-	CP_r_r(gb, &gb->cpu->A, gb->cpu->E);
+	CP_r_r(gb, &gb->cpu.A, gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void CP_H(struct gameboy *gb, struct op *op) {
-	CP_r_r(gb, &gb->cpu->A, gb->cpu->H);
+	CP_r_r(gb, &gb->cpu.A, gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void CP_L(struct gameboy *gb, struct op *op) {
-	CP_r_r(gb, &gb->cpu->A, gb->cpu->L);
+	CP_r_r(gb, &gb->cpu.A, gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void CP_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    CP_r_r(gb, &gb->cpu->A, mem_read_u8(gb, gb->cpu->HL));
+    CP_r_r(gb, &gb->cpu.A, mem_read_u8(gb, gb->cpu.HL));
 }
 void CP_A(struct gameboy *gb, struct op *op) {
-	CP_r_r(gb, &gb->cpu->A, gb->cpu->A);
+	CP_r_r(gb, &gb->cpu.A, gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void CP_A_d8(struct gameboy *gb, struct op *op) {
-	CP_r_r(gb, &gb->cpu->A, op->immediate.lo);
+	CP_r_r(gb, &gb->cpu.A, op->immediate.lo);
     gb_add_clocks(gb, 8);
 }
 
 void INC_r(struct gameboy *gb, uint8_t *r1) {
-	gb->cpu->flags.Z = 0;
-	gb->cpu->flags.N = 0;
-    gb->cpu->flags.H = ((*r1 & 0x0F) == 0x0F);
+	gb->cpu.flags.Z = 0;
+	gb->cpu.flags.N = 0;
+    gb->cpu.flags.H = ((*r1 & 0x0F) == 0x0F);
 	(*r1)++;
-	if (!*r1) gb->cpu->flags.Z = 1;
+	if (!*r1) gb->cpu.flags.Z = 1;
 }
 void INC_B(struct gameboy *gb, struct op *op) {
-	INC_r(gb, &gb->cpu->B);
+	INC_r(gb, &gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void INC_C(struct gameboy *gb, struct op *op) {
-	INC_r(gb, &gb->cpu->C);
+	INC_r(gb, &gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void INC_D(struct gameboy *gb, struct op *op) {
-	INC_r(gb, &gb->cpu->D);
+	INC_r(gb, &gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void INC_E(struct gameboy *gb, struct op *op) {
-	INC_r(gb, &gb->cpu->E);
+	INC_r(gb, &gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void INC_H(struct gameboy *gb, struct op *op) {
-	INC_r(gb, &gb->cpu->H);
+	INC_r(gb, &gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void INC_L(struct gameboy *gb, struct op *op) {
-	INC_r(gb, &gb->cpu->L);
+	INC_r(gb, &gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void INC_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     INC_r(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void INC_A(struct gameboy *gb, struct op *op) {
-	INC_r(gb, &gb->cpu->A);
+	INC_r(gb, &gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void INC_r16(struct gameboy *gb, uint16_t *r1) {
@@ -1364,62 +1364,62 @@ void INC_r16(struct gameboy *gb, uint16_t *r1) {
 	(*r1)++;
 }
 void INC_BC(struct gameboy *gb, struct op *op) {
-	INC_r16(gb, &gb->cpu->BC);
+	INC_r16(gb, &gb->cpu.BC);
     gb_add_clocks(gb, 8);
 }
 void INC_DE(struct gameboy *gb, struct op *op) {
-	INC_r16(gb, &gb->cpu->DE);
+	INC_r16(gb, &gb->cpu.DE);
     gb_add_clocks(gb, 8);
 }
 void INC_HL(struct gameboy *gb, struct op *op) {
-	INC_r16(gb, &gb->cpu->HL);
+	INC_r16(gb, &gb->cpu.HL);
     gb_add_clocks(gb, 8);
 }
 void INC_SP(struct gameboy *gb, struct op *op) {
-	INC_r16(gb, &gb->cpu->SP);
+	INC_r16(gb, &gb->cpu.SP);
     gb_add_clocks(gb, 8);
 }
 
 void DEC_r(struct gameboy *gb, uint8_t *r1) {
-	gb->cpu->flags.Z = 0;
-	gb->cpu->flags.N = 1;
-	gb->cpu->flags.H = ((*r1 & 0x0F) == 0x00);
+	gb->cpu.flags.Z = 0;
+	gb->cpu.flags.N = 1;
+	gb->cpu.flags.H = ((*r1 & 0x0F) == 0x00);
 	(*r1)--;
-	if (!*r1) gb->cpu->flags.Z = 1;
+	if (!*r1) gb->cpu.flags.Z = 1;
 }
 void DEC_B(struct gameboy *gb, struct op *op) {
-	DEC_r(gb, &gb->cpu->B);
+	DEC_r(gb, &gb->cpu.B);
     gb_add_clocks(gb, 4);
 }
 void DEC_C(struct gameboy *gb, struct op *op) {
-	DEC_r(gb, &gb->cpu->C);
+	DEC_r(gb, &gb->cpu.C);
     gb_add_clocks(gb, 4);
 }
 void DEC_D(struct gameboy *gb, struct op *op) {
-	DEC_r(gb, &gb->cpu->D);
+	DEC_r(gb, &gb->cpu.D);
     gb_add_clocks(gb, 4);
 }
 void DEC_E(struct gameboy *gb, struct op *op) {
-	DEC_r(gb, &gb->cpu->E);
+	DEC_r(gb, &gb->cpu.E);
     gb_add_clocks(gb, 4);
 }
 void DEC_H(struct gameboy *gb, struct op *op) {
-	DEC_r(gb, &gb->cpu->H);
+	DEC_r(gb, &gb->cpu.H);
     gb_add_clocks(gb, 4);
 }
 void DEC_L(struct gameboy *gb, struct op *op) {
-	DEC_r(gb, &gb->cpu->L);
+	DEC_r(gb, &gb->cpu.L);
     gb_add_clocks(gb, 4);
 }
 void DEC_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     DEC_r(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void DEC_A(struct gameboy *gb, struct op *op) {
-	DEC_r(gb, &gb->cpu->A);
+	DEC_r(gb, &gb->cpu.A);
     gb_add_clocks(gb, 4);
 }
 void DEC_r16(struct gameboy *gb, uint16_t *r1) {
@@ -1427,354 +1427,354 @@ void DEC_r16(struct gameboy *gb, uint16_t *r1) {
 	(*r1)--;
 }
 void DEC_BC(struct gameboy *gb, struct op *op) {
-	DEC_r16(gb, &gb->cpu->BC);
+	DEC_r16(gb, &gb->cpu.BC);
     gb_add_clocks(gb, 8);
 }
 void DEC_DE(struct gameboy *gb, struct op *op) {
-	DEC_r16(gb, &gb->cpu->DE);
+	DEC_r16(gb, &gb->cpu.DE);
     gb_add_clocks(gb, 8);
 }
 void DEC_HL(struct gameboy *gb, struct op *op) {
-	DEC_r16(gb, &gb->cpu->HL);
+	DEC_r16(gb, &gb->cpu.HL);
     gb_add_clocks(gb, 8);
 }
 void DEC_SP(struct gameboy *gb, struct op *op) {
-	DEC_r16(gb, &gb->cpu->SP);
+	DEC_r16(gb, &gb->cpu.SP);
     gb_add_clocks(gb, 8);
 }
 
 void LD_A_A(struct gameboy *gb, struct op *op) {
-	gb->cpu->A = gb->cpu->A;
+	gb->cpu.A = gb->cpu.A;
     gb_add_clocks(gb, 4);
 }
 void LD_A_B(struct gameboy *gb, struct op *op) {
-	gb->cpu->A = gb->cpu->B;
+	gb->cpu.A = gb->cpu.B;
     gb_add_clocks(gb, 4);
 }
 void LD_A_C(struct gameboy *gb, struct op *op) {
-	gb->cpu->A = gb->cpu->C;
+	gb->cpu.A = gb->cpu.C;
     gb_add_clocks(gb, 4);
 }
 void LD_A_D(struct gameboy *gb, struct op *op) {
-	gb->cpu->A = gb->cpu->D;
+	gb->cpu.A = gb->cpu.D;
     gb_add_clocks(gb, 4);
 }
 void LD_A_E(struct gameboy *gb, struct op *op) {
-	gb->cpu->A = gb->cpu->E;
+	gb->cpu.A = gb->cpu.E;
     gb_add_clocks(gb, 4);
 }
 void LD_A_H(struct gameboy *gb, struct op *op) {
-	gb->cpu->A = gb->cpu->H;
+	gb->cpu.A = gb->cpu.H;
     gb_add_clocks(gb, 4);
 }
 void LD_A_L(struct gameboy *gb, struct op *op) {
-	gb->cpu->A = gb->cpu->L;
+	gb->cpu.A = gb->cpu.L;
     gb_add_clocks(gb, 4);
 }
 void LD_A_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    gb->cpu->A = mem_read_u8(gb, gb->cpu->HL);
+    gb->cpu.A = mem_read_u8(gb, gb->cpu.HL);
 }
 
 void LD_B_A(struct gameboy *gb, struct op *op) {
-	gb->cpu->B = gb->cpu->A;
+	gb->cpu.B = gb->cpu.A;
     gb_add_clocks(gb, 4);
 }
 void LD_B_B(struct gameboy *gb, struct op *op) {
-	gb->cpu->B = gb->cpu->B;
+	gb->cpu.B = gb->cpu.B;
     gb_add_clocks(gb, 4);
 }
 void LD_B_C(struct gameboy *gb, struct op *op) {
-	gb->cpu->B = gb->cpu->C;
+	gb->cpu.B = gb->cpu.C;
     gb_add_clocks(gb, 4);
 }
 void LD_B_D(struct gameboy *gb, struct op *op) {
-	gb->cpu->B = gb->cpu->D;
+	gb->cpu.B = gb->cpu.D;
     gb_add_clocks(gb, 4);
 }
 void LD_B_E(struct gameboy *gb, struct op *op) {
-	gb->cpu->B = gb->cpu->E;
+	gb->cpu.B = gb->cpu.E;
     gb_add_clocks(gb, 4);
 }
 void LD_B_H(struct gameboy *gb, struct op *op) {
-	gb->cpu->B = gb->cpu->H;
+	gb->cpu.B = gb->cpu.H;
     gb_add_clocks(gb, 4);
 }
 void LD_B_L(struct gameboy *gb, struct op *op) {
-	gb->cpu->B = gb->cpu->L;
+	gb->cpu.B = gb->cpu.L;
     gb_add_clocks(gb, 4);
 }
 void LD_B_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    gb->cpu->B = mem_read_u8(gb, gb->cpu->HL);
+    gb->cpu.B = mem_read_u8(gb, gb->cpu.HL);
 }
 
 void LD_C_A(struct gameboy *gb, struct op *op) {
-	gb->cpu->C = gb->cpu->A;
+	gb->cpu.C = gb->cpu.A;
     gb_add_clocks(gb, 4);
 }
 void LD_C_B(struct gameboy *gb, struct op *op) {
-	gb->cpu->C = gb->cpu->B;
+	gb->cpu.C = gb->cpu.B;
     gb_add_clocks(gb, 4);
 }
 void LD_C_C(struct gameboy *gb, struct op *op) {
-	gb->cpu->C = gb->cpu->C;
+	gb->cpu.C = gb->cpu.C;
     gb_add_clocks(gb, 4);
 }
 void LD_C_D(struct gameboy *gb, struct op *op) {
-	gb->cpu->C = gb->cpu->D;
+	gb->cpu.C = gb->cpu.D;
     gb_add_clocks(gb, 4);
 }
 void LD_C_E(struct gameboy *gb, struct op *op) {
-	gb->cpu->C = gb->cpu->E;
+	gb->cpu.C = gb->cpu.E;
     gb_add_clocks(gb, 4);
 }
 void LD_C_H(struct gameboy *gb, struct op *op) {
-	gb->cpu->C = gb->cpu->H;
+	gb->cpu.C = gb->cpu.H;
     gb_add_clocks(gb, 4);
 }
 void LD_C_L(struct gameboy *gb, struct op *op) {
-	gb->cpu->C = gb->cpu->L;
+	gb->cpu.C = gb->cpu.L;
     gb_add_clocks(gb, 4);
 }
 void LD_C_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    gb->cpu->C = mem_read_u8(gb, gb->cpu->HL);
+    gb->cpu.C = mem_read_u8(gb, gb->cpu.HL);
 }
 
 void LD_D_A(struct gameboy *gb, struct op *op) {
-	gb->cpu->D = gb->cpu->A;
+	gb->cpu.D = gb->cpu.A;
     gb_add_clocks(gb, 4);
 }
 void LD_D_B(struct gameboy *gb, struct op *op) {
-	gb->cpu->D = gb->cpu->B;
+	gb->cpu.D = gb->cpu.B;
     gb_add_clocks(gb, 4);
 }
 void LD_D_C(struct gameboy *gb, struct op *op) {
-	gb->cpu->D = gb->cpu->C;
+	gb->cpu.D = gb->cpu.C;
     gb_add_clocks(gb, 4);
 }
 void LD_D_D(struct gameboy *gb, struct op *op) {
-	gb->cpu->D = gb->cpu->D;
+	gb->cpu.D = gb->cpu.D;
     gb_add_clocks(gb, 4);
 }
 void LD_D_E(struct gameboy *gb, struct op *op) {
-	gb->cpu->D = gb->cpu->E;
+	gb->cpu.D = gb->cpu.E;
     gb_add_clocks(gb, 4);
 }
 void LD_D_H(struct gameboy *gb, struct op *op) {
-	gb->cpu->D = gb->cpu->H;
+	gb->cpu.D = gb->cpu.H;
     gb_add_clocks(gb, 4);
 }
 void LD_D_L(struct gameboy *gb, struct op *op) {
-	gb->cpu->D = gb->cpu->L;
+	gb->cpu.D = gb->cpu.L;
     gb_add_clocks(gb, 4);
 }
 void LD_D_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    gb->cpu->D = mem_read_u8(gb, gb->cpu->HL);
+    gb->cpu.D = mem_read_u8(gb, gb->cpu.HL);
 }
 
 void LD_E_A(struct gameboy *gb, struct op *op) {
-	gb->cpu->E = gb->cpu->A;
+	gb->cpu.E = gb->cpu.A;
     gb_add_clocks(gb, 4);
 }
 void LD_E_B(struct gameboy *gb, struct op *op) {
-	gb->cpu->E = gb->cpu->B;
+	gb->cpu.E = gb->cpu.B;
     gb_add_clocks(gb, 4);
 }
 void LD_E_C(struct gameboy *gb, struct op *op) {
-	gb->cpu->E = gb->cpu->C;
+	gb->cpu.E = gb->cpu.C;
     gb_add_clocks(gb, 4);
 }
 void LD_E_D(struct gameboy *gb, struct op *op) {
-	gb->cpu->E = gb->cpu->D;
+	gb->cpu.E = gb->cpu.D;
     gb_add_clocks(gb, 4);
 }
 void LD_E_E(struct gameboy *gb, struct op *op) {
-	gb->cpu->E = gb->cpu->E;
+	gb->cpu.E = gb->cpu.E;
     gb_add_clocks(gb, 4);
 }
 void LD_E_H(struct gameboy *gb, struct op *op) {
-	gb->cpu->E = gb->cpu->H;
+	gb->cpu.E = gb->cpu.H;
     gb_add_clocks(gb, 4);
 }
 void LD_E_L(struct gameboy *gb, struct op *op) {
-	gb->cpu->E = gb->cpu->L;
+	gb->cpu.E = gb->cpu.L;
     gb_add_clocks(gb, 4);
 }
 void LD_E_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    gb->cpu->E = mem_read_u8(gb, gb->cpu->HL);
+    gb->cpu.E = mem_read_u8(gb, gb->cpu.HL);
 }
 
 void LD_H_A(struct gameboy *gb, struct op *op) {
-	gb->cpu->H = gb->cpu->A;
+	gb->cpu.H = gb->cpu.A;
     gb_add_clocks(gb, 4);
 }
 void LD_H_B(struct gameboy *gb, struct op *op) {
-	gb->cpu->H = gb->cpu->B;
+	gb->cpu.H = gb->cpu.B;
     gb_add_clocks(gb, 4);
 }
 void LD_H_C(struct gameboy *gb, struct op *op) {
-	gb->cpu->H = gb->cpu->C;
+	gb->cpu.H = gb->cpu.C;
     gb_add_clocks(gb, 4);
 }
 void LD_H_D(struct gameboy *gb, struct op *op) {
-	gb->cpu->H = gb->cpu->D;
+	gb->cpu.H = gb->cpu.D;
     gb_add_clocks(gb, 4);
 }
 void LD_H_E(struct gameboy *gb, struct op *op) {
-	gb->cpu->H = gb->cpu->E;
+	gb->cpu.H = gb->cpu.E;
     gb_add_clocks(gb, 4);
 }
 void LD_H_H(struct gameboy *gb, struct op *op) {
-	gb->cpu->H = gb->cpu->H;
+	gb->cpu.H = gb->cpu.H;
     gb_add_clocks(gb, 4);
 }
 void LD_H_L(struct gameboy *gb, struct op *op) {
-	gb->cpu->H = gb->cpu->L;
+	gb->cpu.H = gb->cpu.L;
     gb_add_clocks(gb, 4);
 }
 void LD_H_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    gb->cpu->H = mem_read_u8(gb, gb->cpu->HL);
+    gb->cpu.H = mem_read_u8(gb, gb->cpu.HL);
 }
 
 void LD_L_A(struct gameboy *gb, struct op *op) {
-	gb->cpu->L = gb->cpu->A;
+	gb->cpu.L = gb->cpu.A;
     gb_add_clocks(gb, 4);
 }
 void LD_L_B(struct gameboy *gb, struct op *op) {
-	gb->cpu->L = gb->cpu->B;
+	gb->cpu.L = gb->cpu.B;
     gb_add_clocks(gb, 4);
 }
 void LD_L_C(struct gameboy *gb, struct op *op) {
-	gb->cpu->L = gb->cpu->C;
+	gb->cpu.L = gb->cpu.C;
     gb_add_clocks(gb, 4);
 }
 void LD_L_D(struct gameboy *gb, struct op *op) {
-	gb->cpu->L = gb->cpu->D;
+	gb->cpu.L = gb->cpu.D;
     gb_add_clocks(gb, 4);
 }
 void LD_L_E(struct gameboy *gb, struct op *op) {
-	gb->cpu->L = gb->cpu->E;
+	gb->cpu.L = gb->cpu.E;
     gb_add_clocks(gb, 4);
 }
 void LD_L_H(struct gameboy *gb, struct op *op) {
-	gb->cpu->L = gb->cpu->H;
+	gb->cpu.L = gb->cpu.H;
     gb_add_clocks(gb, 4);
 }
 void LD_L_L(struct gameboy *gb, struct op *op) {
-	gb->cpu->L = gb->cpu->L;
+	gb->cpu.L = gb->cpu.L;
     gb_add_clocks(gb, 4);
 }
 void LD_L_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    gb->cpu->L = mem_read_u8(gb, gb->cpu->HL);
+    gb->cpu.L = mem_read_u8(gb, gb->cpu.HL);
 }
 
 
 void LD_BCa_A(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    mem_write_u8(gb, gb->cpu->BC, gb->cpu->A);
+    mem_write_u8(gb, gb->cpu.BC, gb->cpu.A);
 }
 void LD_DEa_A(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    mem_write_u8(gb, gb->cpu->DE, gb->cpu->A);
+    mem_write_u8(gb, gb->cpu.DE, gb->cpu.A);
 }
 void LD_I_HLa_A(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-	uint16_t addr = gb->cpu->HL++;
-    mem_write_u8(gb, addr, gb->cpu->A);
+	uint16_t addr = gb->cpu.HL++;
+    mem_write_u8(gb, addr, gb->cpu.A);
 }
 void LD_D_HLa_A(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-	uint16_t addr = gb->cpu->HL--;
-    mem_write_u8(gb, addr, gb->cpu->A);
+	uint16_t addr = gb->cpu.HL--;
+    mem_write_u8(gb, addr, gb->cpu.A);
 }
 
 void LD_A_BCa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-	uint16_t addr = gb->cpu->BC;
-    gb->cpu->A = mem_read_u8(gb, addr);
+	uint16_t addr = gb->cpu.BC;
+    gb->cpu.A = mem_read_u8(gb, addr);
 }
 void LD_A_DEa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-	uint16_t addr = gb->cpu->DE;
-    gb->cpu->A = mem_read_u8(gb, addr);
+	uint16_t addr = gb->cpu.DE;
+    gb->cpu.A = mem_read_u8(gb, addr);
 }
 void LD_I_A_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-	uint16_t addr = gb->cpu->HL++;
-    gb->cpu->A = mem_read_u8(gb, addr);
+	uint16_t addr = gb->cpu.HL++;
+    gb->cpu.A = mem_read_u8(gb, addr);
 }
 void LD_D_A_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-	uint16_t addr = gb->cpu->HL--;
-    gb->cpu->A = mem_read_u8(gb, addr);
+	uint16_t addr = gb->cpu.HL--;
+    gb->cpu.A = mem_read_u8(gb, addr);
 }
 
 void LD_HLa_A(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    mem_write_u8(gb, gb->cpu->HL, gb->cpu->A);
+    mem_write_u8(gb, gb->cpu.HL, gb->cpu.A);
 }
 void LD_HLa_B(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    mem_write_u8(gb, gb->cpu->HL, gb->cpu->B);
+    mem_write_u8(gb, gb->cpu.HL, gb->cpu.B);
 }
 void LD_HLa_C(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    mem_write_u8(gb, gb->cpu->HL, gb->cpu->C);
+    mem_write_u8(gb, gb->cpu.HL, gb->cpu.C);
 }
 void LD_HLa_D(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    mem_write_u8(gb, gb->cpu->HL, gb->cpu->D);
+    mem_write_u8(gb, gb->cpu.HL, gb->cpu.D);
 }
 void LD_HLa_E(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    mem_write_u8(gb, gb->cpu->HL, gb->cpu->E);
+    mem_write_u8(gb, gb->cpu.HL, gb->cpu.E);
 }
 void LD_HLa_H(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    mem_write_u8(gb, gb->cpu->HL, gb->cpu->H);
+    mem_write_u8(gb, gb->cpu.HL, gb->cpu.H);
 }
 void LD_HLa_L(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-    mem_write_u8(gb, gb->cpu->HL, gb->cpu->L);
+    mem_write_u8(gb, gb->cpu.HL, gb->cpu.L);
 }
 
 void LD_A_d8(struct gameboy *gb, struct op *op) {
-	gb->cpu->A = op->immediate.lo;
+	gb->cpu.A = op->immediate.lo;
     gb_add_clocks(gb, 8);
 }
 void LD_B_d8(struct gameboy *gb, struct op *op) {
-	gb->cpu->B = op->immediate.lo;
+	gb->cpu.B = op->immediate.lo;
     gb_add_clocks(gb, 8);
 }
 void LD_C_d8(struct gameboy *gb, struct op *op) {
-	gb->cpu->C = op->immediate.lo;
+	gb->cpu.C = op->immediate.lo;
     gb_add_clocks(gb, 8);
 }
 void LD_D_d8(struct gameboy *gb, struct op *op) {
-	gb->cpu->D = op->immediate.lo;
+	gb->cpu.D = op->immediate.lo;
     gb_add_clocks(gb, 8);
 }
 void LD_E_d8(struct gameboy *gb, struct op *op) {
-	gb->cpu->E = op->immediate.lo;
+	gb->cpu.E = op->immediate.lo;
     gb_add_clocks(gb, 8);
 }
 void LD_H_d8(struct gameboy *gb, struct op *op) {
-	gb->cpu->H = op->immediate.lo;
+	gb->cpu.H = op->immediate.lo;
     gb_add_clocks(gb, 8);
 }
 void LD_L_d8(struct gameboy *gb, struct op *op) {
-	gb->cpu->L = op->immediate.lo;
+	gb->cpu.L = op->immediate.lo;
     gb_add_clocks(gb, 8);
 }
 void LD_HLa_d8(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    mem_write_u8(gb, gb->cpu->HL, op->immediate.lo);
+    mem_write_u8(gb, gb->cpu.HL, op->immediate.lo);
 }
 
 void LDH_a8_A(struct gameboy *gb, struct op *op) {
@@ -1782,472 +1782,472 @@ void LDH_a8_A(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 4);
     gb_add_clocks(gb, 4);
 	uint16_t addr = 0xFF00 + op->immediate.lo;
-    mem_write_u8(gb, addr, gb->cpu->A);
+    mem_write_u8(gb, addr, gb->cpu.A);
 }
 void LDH_A_a8(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
 	uint16_t addr = 0xFF00 + op->immediate.lo;
-    gb->cpu->A = mem_read_u8(gb, addr);
+    gb->cpu.A = mem_read_u8(gb, addr);
 }
 void LDH_Ca_A(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-	uint16_t addr = 0xFF00 + gb->cpu->C;
-    mem_write_u8(gb, addr, gb->cpu->A);
+	uint16_t addr = 0xFF00 + gb->cpu.C;
+    mem_write_u8(gb, addr, gb->cpu.A);
 }
 void LDH_A_Ca(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 8);
-	uint16_t addr = 0xFF00 + gb->cpu->C;
-    gb->cpu->A = mem_read_u8(gb, addr);
+	uint16_t addr = 0xFF00 + gb->cpu.C;
+    gb->cpu.A = mem_read_u8(gb, addr);
 }
 
 void LD_a16_A(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 16);
 	uint16_t addr = op->immediate.word;
-    mem_write_u8(gb, addr, gb->cpu->A);
+    mem_write_u8(gb, addr, gb->cpu.A);
 }
 void LD_A_a16(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 16);
 	uint16_t addr = op->immediate.word;
-    gb->cpu->A = mem_read_u8(gb, addr);
+    gb->cpu.A = mem_read_u8(gb, addr);
 }
 
 void LD_BC_d16(struct gameboy *gb, struct op *op) {
-	gb->cpu->BC = op->immediate.word;
+	gb->cpu.BC = op->immediate.word;
     gb_add_clocks(gb, 12);
 }
 void LD_DE_d16(struct gameboy *gb, struct op *op) {
-	gb->cpu->DE = op->immediate.word;
+	gb->cpu.DE = op->immediate.word;
     gb_add_clocks(gb, 12);
 }
 void LD_HL_d16(struct gameboy *gb, struct op *op) {
-	gb->cpu->HL = op->immediate.word;
+	gb->cpu.HL = op->immediate.word;
     gb_add_clocks(gb, 12);
 }
 void LD_SP_d16(struct gameboy *gb, struct op *op) {
-	gb->cpu->SP = op->immediate.word;
+	gb->cpu.SP = op->immediate.word;
     gb_add_clocks(gb, 12);
 }
 void LD_a16_SP(struct gameboy *gb, struct op *op) {
 	uint16_t addr = op->immediate.word;
-    mem_write_u8(gb, addr, gb->cpu->SP & 0xFF);
-    mem_write_u8(gb, addr+1, gb->cpu->SP >> 8);
+    mem_write_u8(gb, addr, gb->cpu.SP & 0xFF);
+    mem_write_u8(gb, addr+1, gb->cpu.SP >> 8);
     gb_add_clocks(gb, 20);
 }
 void LD_SP_HL(struct gameboy *gb, struct op *op) {
-	gb->cpu->SP = gb->cpu->HL;
+	gb->cpu.SP = gb->cpu.HL;
     gb_add_clocks(gb, 8);
 }
 void LDHL_SP_r8(struct gameboy *gb, struct op *op) {
-    gb->cpu->flags.Z = 0;
-    gb->cpu->flags.N = 0;
+    gb->cpu.flags.Z = 0;
+    gb->cpu.flags.N = 0;
     int8_t d = op->immediate.lo;
-    int32_t result = gb->cpu->SP + d;
+    int32_t result = gb->cpu.SP + d;
     /* Bit 7 carry */
-    gb->cpu->flags.C = ((gb->cpu->SP & 0x0FF) + ((int8_t) op->immediate.lo & 0x0FF) > 0x0FF);
+    gb->cpu.flags.C = ((gb->cpu.SP & 0x0FF) + ((int8_t) op->immediate.lo & 0x0FF) > 0x0FF);
     /* Bit 3 carry */
-    gb->cpu->flags.H = ((gb->cpu->SP & 0x0F) + ((int8_t) op->immediate.lo & 0x0F) > 0x0F);
-    gb->cpu->HL = result;
+    gb->cpu.flags.H = ((gb->cpu.SP & 0x0F) + ((int8_t) op->immediate.lo & 0x0F) > 0x0F);
+    gb->cpu.HL = result;
     gb_add_clocks(gb, 12);
 }
 
 void RLCA(struct gameboy *gb, struct op *op) {
-    gb->cpu->flags.Z = 0;
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.C = 0;
-    uint8_t old = gb->cpu->A;
-    gb->cpu->A = gb->cpu->A << 1;
+    gb->cpu.flags.Z = 0;
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.C = 0;
+    uint8_t old = gb->cpu.A;
+    gb->cpu.A = gb->cpu.A << 1;
     /* Bit 7 carry */
     if (old & 0x80) {
-        gb->cpu->A |= 0x01;
-        gb->cpu->flags.C = 1;
+        gb->cpu.A |= 0x01;
+        gb->cpu.flags.C = 1;
     }
     gb_add_clocks(gb, 4);
 }
 
 void RLA(struct gameboy *gb, struct op *op) {
-    uint8_t C_tmp = gb->cpu->flags.C;
-    gb->cpu->flags.C = ((gb->cpu->A & 0x80) != 0);
-    gb->cpu->flags.Z = 0;
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    gb->cpu->A = (gb->cpu->A << 1) | C_tmp;
+    uint8_t C_tmp = gb->cpu.flags.C;
+    gb->cpu.flags.C = ((gb->cpu.A & 0x80) != 0);
+    gb->cpu.flags.Z = 0;
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    gb->cpu.A = (gb->cpu.A << 1) | C_tmp;
     gb_add_clocks(gb, 4);
 }
 
 void RRCA(struct gameboy *gb, struct op *op) {
-    gb->cpu->flags.Z = 0;
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.C = 0;
-    uint8_t old = gb->cpu->A;
-    gb->cpu->A = gb->cpu->A >> 1;
+    gb->cpu.flags.Z = 0;
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.C = 0;
+    uint8_t old = gb->cpu.A;
+    gb->cpu.A = gb->cpu.A >> 1;
     /* Bit 0 carry */
     if (old & 0x01) {
-        gb->cpu->A |= 0x80;
-        gb->cpu->flags.C = 1;
+        gb->cpu.A |= 0x80;
+        gb->cpu.flags.C = 1;
     }
     gb_add_clocks(gb, 4);
 }
 
 void RRA(struct gameboy *gb, struct op *op) {
-    uint8_t C_tmp = gb->cpu->flags.C;
-    gb->cpu->flags.C = ((gb->cpu->A & 0x01) != 0);
-    gb->cpu->flags.Z = 0;
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    gb->cpu->A = (gb->cpu->A >> 1) | (C_tmp << 7);
+    uint8_t C_tmp = gb->cpu.flags.C;
+    gb->cpu.flags.C = ((gb->cpu.A & 0x01) != 0);
+    gb->cpu.flags.Z = 0;
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    gb->cpu.A = (gb->cpu.A >> 1) | (C_tmp << 7);
     gb_add_clocks(gb, 4);
 }
 
 void RLC(struct gameboy *gb, uint8_t *r1) {
-    gb->cpu->flags.C = ((*r1 & 0x80) != 0);
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    *r1 = (*r1 << 1) | gb->cpu->flags.C;
-    gb->cpu->flags.Z = (*r1 == 0);
+    gb->cpu.flags.C = ((*r1 & 0x80) != 0);
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    *r1 = (*r1 << 1) | gb->cpu.flags.C;
+    gb->cpu.flags.Z = (*r1 == 0);
 }
 void RRC(struct gameboy *gb, uint8_t *r1) {
-    gb->cpu->flags.C = ((*r1 & 0x01) != 0);
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    *r1 = (*r1 >> 1) | (gb->cpu->flags.C << 7);
-    gb->cpu->flags.Z = (*r1 == 0);
+    gb->cpu.flags.C = ((*r1 & 0x01) != 0);
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    *r1 = (*r1 >> 1) | (gb->cpu.flags.C << 7);
+    gb->cpu.flags.Z = (*r1 == 0);
 }
 
 void RLC_B(struct gameboy *gb, struct op *op) {
-    RLC(gb, &gb->cpu->B);
+    RLC(gb, &gb->cpu.B);
     gb_add_clocks(gb, 8);
 }
 void RLC_C(struct gameboy *gb, struct op *op) {
-    RLC(gb, &gb->cpu->C);
+    RLC(gb, &gb->cpu.C);
     gb_add_clocks(gb, 8);
 }
 void RLC_D(struct gameboy *gb, struct op *op) {
-    RLC(gb, &gb->cpu->D);
+    RLC(gb, &gb->cpu.D);
     gb_add_clocks(gb, 8);
 }
 void RLC_E(struct gameboy *gb, struct op *op) {
-    RLC(gb, &gb->cpu->E);
+    RLC(gb, &gb->cpu.E);
     gb_add_clocks(gb, 8);
 }
 void RLC_H(struct gameboy *gb, struct op *op) {
-    RLC(gb, &gb->cpu->H);
+    RLC(gb, &gb->cpu.H);
     gb_add_clocks(gb, 8);
 }
 void RLC_L(struct gameboy *gb, struct op *op) {
-    RLC(gb, &gb->cpu->L);
+    RLC(gb, &gb->cpu.L);
     gb_add_clocks(gb, 8);
 }
 void RLC_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RLC(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RLC_A(struct gameboy *gb, struct op *op) {
-    RLC(gb, &gb->cpu->A);
+    RLC(gb, &gb->cpu.A);
     gb_add_clocks(gb, 8);
 }
 
 void RRC_B(struct gameboy *gb, struct op *op) {
-    RRC(gb, &gb->cpu->B);
+    RRC(gb, &gb->cpu.B);
     gb_add_clocks(gb, 8);
 }
 void RRC_C(struct gameboy *gb, struct op *op) {
-    RRC(gb, &gb->cpu->C);
+    RRC(gb, &gb->cpu.C);
     gb_add_clocks(gb, 8);
 }
 void RRC_D(struct gameboy *gb, struct op *op) {
-    RRC(gb, &gb->cpu->D);
+    RRC(gb, &gb->cpu.D);
     gb_add_clocks(gb, 8);
 }
 void RRC_E(struct gameboy *gb, struct op *op) {
-    RRC(gb, &gb->cpu->E);
+    RRC(gb, &gb->cpu.E);
     gb_add_clocks(gb, 8);
 }
 void RRC_H(struct gameboy *gb, struct op *op) {
-    RRC(gb, &gb->cpu->H);
+    RRC(gb, &gb->cpu.H);
     gb_add_clocks(gb, 8);
 }
 void RRC_L(struct gameboy *gb, struct op *op) {
-    RRC(gb, &gb->cpu->L);
+    RRC(gb, &gb->cpu.L);
     gb_add_clocks(gb, 8);
 }
 void RRC_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RRC(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RRC_A(struct gameboy *gb, struct op *op) {
-    RRC(gb, &gb->cpu->A);
+    RRC(gb, &gb->cpu.A);
     gb_add_clocks(gb, 8);
 }
 
 void RL(struct gameboy *gb, uint8_t *r1) {
-    uint8_t C_tmp = gb->cpu->flags.C;
-    gb->cpu->flags.C = ((*r1 & 0x80) != 0);
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
+    uint8_t C_tmp = gb->cpu.flags.C;
+    gb->cpu.flags.C = ((*r1 & 0x80) != 0);
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
     *r1 = (*r1 << 1) | C_tmp;
-    gb->cpu->flags.Z = (*r1 == 0);
+    gb->cpu.flags.Z = (*r1 == 0);
 }
 void RR(struct gameboy *gb, uint8_t *r1) {
-    uint8_t C_tmp = gb->cpu->flags.C;
-    gb->cpu->flags.C = ((*r1 & 0x01) != 0);
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
+    uint8_t C_tmp = gb->cpu.flags.C;
+    gb->cpu.flags.C = ((*r1 & 0x01) != 0);
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
     *r1 = (*r1 >> 1) | (C_tmp << 7);
-    gb->cpu->flags.Z = (*r1 == 0);
+    gb->cpu.flags.Z = (*r1 == 0);
 }
 
 void RL_B(struct gameboy *gb, struct op *op) {
-    RL(gb, &gb->cpu->B);
+    RL(gb, &gb->cpu.B);
     gb_add_clocks(gb, 8);
 }
 void RL_C(struct gameboy *gb, struct op *op) {
-    RL(gb, &gb->cpu->C);
+    RL(gb, &gb->cpu.C);
     gb_add_clocks(gb, 8);
 }
 void RL_D(struct gameboy *gb, struct op *op) {
-    RL(gb, &gb->cpu->D);
+    RL(gb, &gb->cpu.D);
     gb_add_clocks(gb, 8);
 }
 void RL_E(struct gameboy *gb, struct op *op) {
-    RL(gb, &gb->cpu->E);
+    RL(gb, &gb->cpu.E);
     gb_add_clocks(gb, 8);
 }
 void RL_H(struct gameboy *gb, struct op *op) {
-    RL(gb, &gb->cpu->H);
+    RL(gb, &gb->cpu.H);
     gb_add_clocks(gb, 8);
 }
 void RL_L(struct gameboy *gb, struct op *op) {
-    RL(gb, &gb->cpu->L);
+    RL(gb, &gb->cpu.L);
     gb_add_clocks(gb, 8);
 }
 void RL_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RL(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RL_A(struct gameboy *gb, struct op *op) {
-    RL(gb, &gb->cpu->A);
+    RL(gb, &gb->cpu.A);
     gb_add_clocks(gb, 8);
 }
 
 void RR_B(struct gameboy *gb, struct op *op) {
-    RR(gb, &gb->cpu->B);
+    RR(gb, &gb->cpu.B);
     gb_add_clocks(gb, 8);
 }
 void RR_C(struct gameboy *gb, struct op *op) {
-    RR(gb, &gb->cpu->C);
+    RR(gb, &gb->cpu.C);
     gb_add_clocks(gb, 8);
 }
 void RR_D(struct gameboy *gb, struct op *op) {
-    RR(gb, &gb->cpu->D);
+    RR(gb, &gb->cpu.D);
     gb_add_clocks(gb, 8);
 }
 void RR_E(struct gameboy *gb, struct op *op) {
-    RR(gb, &gb->cpu->E);
+    RR(gb, &gb->cpu.E);
     gb_add_clocks(gb, 8);
 }
 void RR_H(struct gameboy *gb, struct op *op) {
-    RR(gb, &gb->cpu->H);
+    RR(gb, &gb->cpu.H);
     gb_add_clocks(gb, 8);
 }
 void RR_L(struct gameboy *gb, struct op *op) {
-    RR(gb, &gb->cpu->L);
+    RR(gb, &gb->cpu.L);
     gb_add_clocks(gb, 8);
 }
 void RR_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RR(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RR_A(struct gameboy *gb, struct op *op) {
-    RR(gb, &gb->cpu->A);
+    RR(gb, &gb->cpu.A);
     gb_add_clocks(gb, 8);
 }
 
 void SLA(struct gameboy *gb, uint8_t *r1) {
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.C = ((*r1 & 0x80) != 0);
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.C = ((*r1 & 0x80) != 0);
     *r1 = *r1 << 1;
-    gb->cpu->flags.Z = (*r1 == 0);
+    gb->cpu.flags.Z = (*r1 == 0);
 }
 void SLA_B(struct gameboy *gb, struct op *op) {
-    SLA(gb, &gb->cpu->B);
+    SLA(gb, &gb->cpu.B);
     gb_add_clocks(gb, 8);
 }
 void SLA_C(struct gameboy *gb, struct op *op) {
-    SLA(gb, &gb->cpu->C);
+    SLA(gb, &gb->cpu.C);
     gb_add_clocks(gb, 8);
 }
 void SLA_D(struct gameboy *gb, struct op *op) {
-    SLA(gb, &gb->cpu->D);
+    SLA(gb, &gb->cpu.D);
     gb_add_clocks(gb, 8);
 }
 void SLA_E(struct gameboy *gb, struct op *op) {
-    SLA(gb, &gb->cpu->E);
+    SLA(gb, &gb->cpu.E);
     gb_add_clocks(gb, 8);
 }
 void SLA_H(struct gameboy *gb, struct op *op) {
-    SLA(gb, &gb->cpu->H);
+    SLA(gb, &gb->cpu.H);
     gb_add_clocks(gb, 8);
 }
 void SLA_L(struct gameboy *gb, struct op *op) {
-    SLA(gb, &gb->cpu->L);
+    SLA(gb, &gb->cpu.L);
     gb_add_clocks(gb, 8);
 }
 void SLA_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SLA(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SLA_A(struct gameboy *gb, struct op *op) {
-    SLA(gb, &gb->cpu->A);
+    SLA(gb, &gb->cpu.A);
     gb_add_clocks(gb, 8);
 }
 
 void SRA(struct gameboy *gb, uint8_t *r1) {
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.C = ((*r1 & 0x01) != 0);
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.C = ((*r1 & 0x01) != 0);
     *r1 = (*r1 >> 1) | (*r1 & 0x80);
-    gb->cpu->flags.Z = (*r1 == 0);
+    gb->cpu.flags.Z = (*r1 == 0);
 }
 void SRA_B(struct gameboy *gb, struct op *op) {
-    SRA(gb, &gb->cpu->B);
+    SRA(gb, &gb->cpu.B);
     gb_add_clocks(gb, 8);
 }
 void SRA_C(struct gameboy *gb, struct op *op) {
-    SRA(gb, &gb->cpu->C);
+    SRA(gb, &gb->cpu.C);
     gb_add_clocks(gb, 8);
 }
 void SRA_D(struct gameboy *gb, struct op *op) {
-    SRA(gb, &gb->cpu->D);
+    SRA(gb, &gb->cpu.D);
     gb_add_clocks(gb, 8);
 }
 void SRA_E(struct gameboy *gb, struct op *op) {
-    SRA(gb, &gb->cpu->E);
+    SRA(gb, &gb->cpu.E);
     gb_add_clocks(gb, 8);
 }
 void SRA_H(struct gameboy *gb, struct op *op) {
-    SRA(gb, &gb->cpu->H);
+    SRA(gb, &gb->cpu.H);
     gb_add_clocks(gb, 8);
 }
 void SRA_L(struct gameboy *gb, struct op *op) {
-    SRA(gb, &gb->cpu->L);
+    SRA(gb, &gb->cpu.L);
     gb_add_clocks(gb, 8);
 }
 void SRA_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SRA(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SRA_A(struct gameboy *gb, struct op *op) {
-    SRA(gb, &gb->cpu->A);
+    SRA(gb, &gb->cpu.A);
     gb_add_clocks(gb, 8);
 }
 
 void SWAP(struct gameboy *gb, uint8_t *r1) {
-    gb->cpu->flags.Z = 0;
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.C = 0;
+    gb->cpu.flags.Z = 0;
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.C = 0;
     *r1 = ((*r1 >> 4) & 0x0F0F0F0F) | ((*r1 & 0x0F0F0F0F) << 4);
-    if (!*r1) gb->cpu->flags.Z = 1;
+    if (!*r1) gb->cpu.flags.Z = 1;
 }
 void SWAP_B(struct gameboy *gb, struct op *op) {
-    SWAP(gb, &gb->cpu->B);
+    SWAP(gb, &gb->cpu.B);
     gb_add_clocks(gb, 8);
 }
 void SWAP_C(struct gameboy *gb, struct op *op) {
-    SWAP(gb, &gb->cpu->C);
+    SWAP(gb, &gb->cpu.C);
     gb_add_clocks(gb, 8);
 }
 void SWAP_D(struct gameboy *gb, struct op *op) {
-    SWAP(gb, &gb->cpu->D);
+    SWAP(gb, &gb->cpu.D);
     gb_add_clocks(gb, 8);
 }
 void SWAP_E(struct gameboy *gb, struct op *op) {
-    SWAP(gb, &gb->cpu->E);
+    SWAP(gb, &gb->cpu.E);
     gb_add_clocks(gb, 8);
 }
 void SWAP_H(struct gameboy *gb, struct op *op) {
-    SWAP(gb, &gb->cpu->H);
+    SWAP(gb, &gb->cpu.H);
     gb_add_clocks(gb, 8);
 }
 void SWAP_L(struct gameboy *gb, struct op *op) {
-    SWAP(gb, &gb->cpu->L);
+    SWAP(gb, &gb->cpu.L);
     gb_add_clocks(gb, 8);
 }
 void SWAP_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SWAP(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SWAP_A(struct gameboy *gb, struct op *op) {
-    SWAP(gb, &gb->cpu->A);
+    SWAP(gb, &gb->cpu.A);
     gb_add_clocks(gb, 8);
 }
 
 
 void SRL(struct gameboy *gb, uint8_t *r1) {
-    gb->cpu->flags.Z = 0;
-    gb->cpu->flags.H = 0;
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.C = *r1 & 0x1;
+    gb->cpu.flags.Z = 0;
+    gb->cpu.flags.H = 0;
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.C = *r1 & 0x1;
     *r1 = *r1 >> 0x1;
-    if (!*r1) gb->cpu->flags.Z = 1;
+    if (!*r1) gb->cpu.flags.Z = 1;
 }
 void SRL_B(struct gameboy *gb, struct op *op) {
-    SRL(gb, &gb->cpu->B);
+    SRL(gb, &gb->cpu.B);
     gb_add_clocks(gb, 8);
 }
 void SRL_C(struct gameboy *gb, struct op *op) {
-    SRL(gb, &gb->cpu->C);
+    SRL(gb, &gb->cpu.C);
     gb_add_clocks(gb, 8);
 }
 void SRL_D(struct gameboy *gb, struct op *op) {
-    SRL(gb, &gb->cpu->D);
+    SRL(gb, &gb->cpu.D);
     gb_add_clocks(gb, 8);
 }
 void SRL_E(struct gameboy *gb, struct op *op) {
-    SRL(gb, &gb->cpu->E);
+    SRL(gb, &gb->cpu.E);
     gb_add_clocks(gb, 8);
 }
 void SRL_H(struct gameboy *gb, struct op *op) {
-    SRL(gb, &gb->cpu->H);
+    SRL(gb, &gb->cpu.H);
     gb_add_clocks(gb, 8);
 }
 void SRL_L(struct gameboy *gb, struct op *op) {
-    SRL(gb, &gb->cpu->L);
+    SRL(gb, &gb->cpu.L);
     gb_add_clocks(gb, 8);
 }
 void SRL_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SRL(gb, &val);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SRL_A(struct gameboy *gb, struct op *op) {
-    SRL(gb, &gb->cpu->A);
+    SRL(gb, &gb->cpu.A);
     gb_add_clocks(gb, 8);
 }
 
@@ -2256,550 +2256,550 @@ void SET_r(struct gameboy *gb, uint8_t *r1, uint8_t bit) {
     *r1 |= 0x1 << bit;
 }
 void SET_0_B(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->B, 0);
+    SET_r(gb, &gb->cpu.B, 0);
     gb_add_clocks(gb, 8);
 }
 void SET_0_C(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->C, 0);
+    SET_r(gb, &gb->cpu.C, 0);
     gb_add_clocks(gb, 8);
 }
 void SET_0_D(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->D, 0);
+    SET_r(gb, &gb->cpu.D, 0);
     gb_add_clocks(gb, 8);
 }
 void SET_0_E(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->E, 0);
+    SET_r(gb, &gb->cpu.E, 0);
     gb_add_clocks(gb, 8);
 }
 void SET_0_H(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->H, 0);
+    SET_r(gb, &gb->cpu.H, 0);
     gb_add_clocks(gb, 8);
 }
 void SET_0_L(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->L, 0);
+    SET_r(gb, &gb->cpu.L, 0);
     gb_add_clocks(gb, 8);
 }
 void SET_0_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SET_r(gb, &val, 0);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SET_0_A(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->A, 0);
+    SET_r(gb, &gb->cpu.A, 0);
     gb_add_clocks(gb, 8);
 }
 void SET_1_B(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->B, 1);
+    SET_r(gb, &gb->cpu.B, 1);
     gb_add_clocks(gb, 8);
 }
 void SET_1_C(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->C, 1);
+    SET_r(gb, &gb->cpu.C, 1);
     gb_add_clocks(gb, 8);
 }
 void SET_1_D(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->D, 1);
+    SET_r(gb, &gb->cpu.D, 1);
     gb_add_clocks(gb, 8);
 }
 void SET_1_E(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->E, 1);
+    SET_r(gb, &gb->cpu.E, 1);
     gb_add_clocks(gb, 8);
 }
 void SET_1_H(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->H, 1);
+    SET_r(gb, &gb->cpu.H, 1);
     gb_add_clocks(gb, 8);
 }
 void SET_1_L(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->L, 1);
+    SET_r(gb, &gb->cpu.L, 1);
     gb_add_clocks(gb, 8);
 }
 void SET_1_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SET_r(gb, &val, 1);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SET_1_A(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->A, 1);
+    SET_r(gb, &gb->cpu.A, 1);
     gb_add_clocks(gb, 8);
 }
 void SET_2_B(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->B, 2);
+    SET_r(gb, &gb->cpu.B, 2);
     gb_add_clocks(gb, 8);
 }
 void SET_2_C(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->C, 2);
+    SET_r(gb, &gb->cpu.C, 2);
     gb_add_clocks(gb, 8);
 }
 void SET_2_D(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->D, 2);
+    SET_r(gb, &gb->cpu.D, 2);
     gb_add_clocks(gb, 8);
 }
 void SET_2_E(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->E, 2);
+    SET_r(gb, &gb->cpu.E, 2);
     gb_add_clocks(gb, 8);
 }
 void SET_2_H(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->H, 2);
+    SET_r(gb, &gb->cpu.H, 2);
     gb_add_clocks(gb, 8);
 }
 void SET_2_L(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->L, 2);
+    SET_r(gb, &gb->cpu.L, 2);
     gb_add_clocks(gb, 8);
 }
 void SET_2_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SET_r(gb, &val, 2);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SET_2_A(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->A, 2);
+    SET_r(gb, &gb->cpu.A, 2);
     gb_add_clocks(gb, 8);
 }
 void SET_3_B(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->B, 3);
+    SET_r(gb, &gb->cpu.B, 3);
     gb_add_clocks(gb, 8);
 }
 void SET_3_C(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->C, 3);
+    SET_r(gb, &gb->cpu.C, 3);
     gb_add_clocks(gb, 8);
 }
 void SET_3_D(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->D, 3);
+    SET_r(gb, &gb->cpu.D, 3);
     gb_add_clocks(gb, 8);
 }
 void SET_3_E(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->E, 3);
+    SET_r(gb, &gb->cpu.E, 3);
     gb_add_clocks(gb, 8);
 }
 void SET_3_H(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->H, 3);
+    SET_r(gb, &gb->cpu.H, 3);
     gb_add_clocks(gb, 8);
 }
 void SET_3_L(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->L, 3);
+    SET_r(gb, &gb->cpu.L, 3);
     gb_add_clocks(gb, 8);
 }
 void SET_3_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SET_r(gb, &val, 3);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SET_3_A(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->A, 3);
+    SET_r(gb, &gb->cpu.A, 3);
     gb_add_clocks(gb, 8);
 }
 void SET_4_B(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->B, 4);
+    SET_r(gb, &gb->cpu.B, 4);
     gb_add_clocks(gb, 8);
 }
 void SET_4_C(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->C, 4);
+    SET_r(gb, &gb->cpu.C, 4);
     gb_add_clocks(gb, 8);
 }
 void SET_4_D(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->D, 4);
+    SET_r(gb, &gb->cpu.D, 4);
     gb_add_clocks(gb, 8);
 }
 void SET_4_E(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->E, 4);
+    SET_r(gb, &gb->cpu.E, 4);
     gb_add_clocks(gb, 8);
 }
 void SET_4_H(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->H, 4);
+    SET_r(gb, &gb->cpu.H, 4);
     gb_add_clocks(gb, 8);
 }
 void SET_4_L(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->L, 4);
+    SET_r(gb, &gb->cpu.L, 4);
     gb_add_clocks(gb, 8);
 }
 void SET_4_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SET_r(gb, &val, 4);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SET_4_A(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->A, 4);
+    SET_r(gb, &gb->cpu.A, 4);
     gb_add_clocks(gb, 8);
 }
 void SET_5_B(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->B, 5);
+    SET_r(gb, &gb->cpu.B, 5);
     gb_add_clocks(gb, 8);
 }
 void SET_5_C(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->C, 5);
+    SET_r(gb, &gb->cpu.C, 5);
     gb_add_clocks(gb, 8);
 }
 void SET_5_D(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->D, 5);
+    SET_r(gb, &gb->cpu.D, 5);
     gb_add_clocks(gb, 8);
 }
 void SET_5_E(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->E, 5);
+    SET_r(gb, &gb->cpu.E, 5);
     gb_add_clocks(gb, 8);
 }
 void SET_5_H(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->H, 5);
+    SET_r(gb, &gb->cpu.H, 5);
     gb_add_clocks(gb, 8);
 }
 void SET_5_L(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->L, 5);
+    SET_r(gb, &gb->cpu.L, 5);
     gb_add_clocks(gb, 8);
 }
 void SET_5_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SET_r(gb, &val, 5);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SET_5_A(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->A, 5);
+    SET_r(gb, &gb->cpu.A, 5);
     gb_add_clocks(gb, 8);
 }
 void SET_6_B(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->B, 6);
+    SET_r(gb, &gb->cpu.B, 6);
     gb_add_clocks(gb, 8);
 }
 void SET_6_C(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->C, 6);
+    SET_r(gb, &gb->cpu.C, 6);
     gb_add_clocks(gb, 8);
 }
 void SET_6_D(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->D, 6);
+    SET_r(gb, &gb->cpu.D, 6);
     gb_add_clocks(gb, 8);
 }
 void SET_6_E(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->E, 6);
+    SET_r(gb, &gb->cpu.E, 6);
     gb_add_clocks(gb, 8);
 }
 void SET_6_H(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->H, 6);
+    SET_r(gb, &gb->cpu.H, 6);
     gb_add_clocks(gb, 8);
 }
 void SET_6_L(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->L, 6);
+    SET_r(gb, &gb->cpu.L, 6);
     gb_add_clocks(gb, 8);
 }
 void SET_6_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SET_r(gb, &val, 6);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SET_6_A(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->A, 6);
+    SET_r(gb, &gb->cpu.A, 6);
     gb_add_clocks(gb, 8);
 }
 void SET_7_B(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->B, 7);
+    SET_r(gb, &gb->cpu.B, 7);
     gb_add_clocks(gb, 8);
 }
 void SET_7_C(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->C, 7);
+    SET_r(gb, &gb->cpu.C, 7);
     gb_add_clocks(gb, 8);
 }
 void SET_7_D(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->D, 7);
+    SET_r(gb, &gb->cpu.D, 7);
     gb_add_clocks(gb, 8);
 }
 void SET_7_E(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->E, 7);
+    SET_r(gb, &gb->cpu.E, 7);
     gb_add_clocks(gb, 8);
 }
 void SET_7_H(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->H, 7);
+    SET_r(gb, &gb->cpu.H, 7);
     gb_add_clocks(gb, 8);
 }
 void SET_7_L(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->L, 7);
+    SET_r(gb, &gb->cpu.L, 7);
     gb_add_clocks(gb, 8);
 }
 void SET_7_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     SET_r(gb, &val, 7);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void SET_7_A(struct gameboy *gb, struct op *op) {
-    SET_r(gb, &gb->cpu->A, 7);
+    SET_r(gb, &gb->cpu.A, 7);
     gb_add_clocks(gb, 8);
 }
 
 void BIT_r(struct gameboy *gb, uint8_t *r1, uint8_t bit) {
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.H = 1;
-    gb->cpu->flags.Z = !(*r1 & (0x1 << bit));
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.H = 1;
+    gb->cpu.flags.Z = !(*r1 & (0x1 << bit));
 }
 void _BIT(struct gameboy *gb, uint8_t v, uint8_t bit) {
-    gb->cpu->flags.N = 0;
-    gb->cpu->flags.H = 1;
-    gb->cpu->flags.Z = !(v & (0x1 << bit));
+    gb->cpu.flags.N = 0;
+    gb->cpu.flags.H = 1;
+    gb->cpu.flags.Z = !(v & (0x1 << bit));
 }
 void BIT_0_B(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->B, 0);
+    BIT_r(gb, &gb->cpu.B, 0);
     gb_add_clocks(gb, 8);
 }
 void BIT_0_C(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->C, 0);
+    BIT_r(gb, &gb->cpu.C, 0);
     gb_add_clocks(gb, 8);
 }
 void BIT_0_D(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->D, 0);
+    BIT_r(gb, &gb->cpu.D, 0);
     gb_add_clocks(gb, 8);
 }
 void BIT_0_E(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->E, 0);
+    BIT_r(gb, &gb->cpu.E, 0);
     gb_add_clocks(gb, 8);
 }
 void BIT_0_H(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->H, 0);
+    BIT_r(gb, &gb->cpu.H, 0);
     gb_add_clocks(gb, 8);
 }
 void BIT_0_L(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->L, 0);
+    BIT_r(gb, &gb->cpu.L, 0);
     gb_add_clocks(gb, 8);
 }
 void BIT_0_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    _BIT(gb, mem_read_u8(gb, gb->cpu->HL), 0);
+    _BIT(gb, mem_read_u8(gb, gb->cpu.HL), 0);
 }
 void BIT_0_A(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->A, 0);
+    BIT_r(gb, &gb->cpu.A, 0);
     gb_add_clocks(gb, 8);
 }
 void BIT_1_B(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->B, 1);
+    BIT_r(gb, &gb->cpu.B, 1);
     gb_add_clocks(gb, 8);
 }
 void BIT_1_C(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->C, 1);
+    BIT_r(gb, &gb->cpu.C, 1);
     gb_add_clocks(gb, 8);
 }
 void BIT_1_D(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->D, 1);
+    BIT_r(gb, &gb->cpu.D, 1);
     gb_add_clocks(gb, 8);
 }
 void BIT_1_E(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->E, 1);
+    BIT_r(gb, &gb->cpu.E, 1);
     gb_add_clocks(gb, 8);
 }
 void BIT_1_H(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->H, 1);
+    BIT_r(gb, &gb->cpu.H, 1);
     gb_add_clocks(gb, 8);
 }
 void BIT_1_L(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->L, 1);
+    BIT_r(gb, &gb->cpu.L, 1);
     gb_add_clocks(gb, 8);
 }
 void BIT_1_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    _BIT(gb, mem_read_u8(gb, gb->cpu->HL), 1);
+    _BIT(gb, mem_read_u8(gb, gb->cpu.HL), 1);
 }
 void BIT_1_A(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->A, 1);
+    BIT_r(gb, &gb->cpu.A, 1);
     gb_add_clocks(gb, 8);
 }
 void BIT_2_B(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->B, 2);
+    BIT_r(gb, &gb->cpu.B, 2);
     gb_add_clocks(gb, 8);
 }
 void BIT_2_C(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->C, 2);
+    BIT_r(gb, &gb->cpu.C, 2);
     gb_add_clocks(gb, 8);
 }
 void BIT_2_D(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->D, 2);
+    BIT_r(gb, &gb->cpu.D, 2);
     gb_add_clocks(gb, 8);
 }
 void BIT_2_E(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->E, 2);
+    BIT_r(gb, &gb->cpu.E, 2);
     gb_add_clocks(gb, 8);
 }
 void BIT_2_H(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->H, 2);
+    BIT_r(gb, &gb->cpu.H, 2);
     gb_add_clocks(gb, 8);
 }
 void BIT_2_L(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->L, 2);
+    BIT_r(gb, &gb->cpu.L, 2);
     gb_add_clocks(gb, 8);
 }
 void BIT_2_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    _BIT(gb, mem_read_u8(gb, gb->cpu->HL), 2);
+    _BIT(gb, mem_read_u8(gb, gb->cpu.HL), 2);
 }
 void BIT_2_A(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->A, 2);
+    BIT_r(gb, &gb->cpu.A, 2);
     gb_add_clocks(gb, 8);
 }
 void BIT_3_B(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->B, 3);
+    BIT_r(gb, &gb->cpu.B, 3);
     gb_add_clocks(gb, 8);
 }
 void BIT_3_C(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->C, 3);
+    BIT_r(gb, &gb->cpu.C, 3);
     gb_add_clocks(gb, 8);
 }
 void BIT_3_D(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->D, 3);
+    BIT_r(gb, &gb->cpu.D, 3);
     gb_add_clocks(gb, 8);
 }
 void BIT_3_E(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->E, 3);
+    BIT_r(gb, &gb->cpu.E, 3);
     gb_add_clocks(gb, 8);
 }
 void BIT_3_H(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->H, 3);
+    BIT_r(gb, &gb->cpu.H, 3);
     gb_add_clocks(gb, 8);
 }
 void BIT_3_L(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->L, 3);
+    BIT_r(gb, &gb->cpu.L, 3);
     gb_add_clocks(gb, 8);
 }
 void BIT_3_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    _BIT(gb, mem_read_u8(gb, gb->cpu->HL), 3);
+    _BIT(gb, mem_read_u8(gb, gb->cpu.HL), 3);
 }
 void BIT_3_A(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->A, 3);
+    BIT_r(gb, &gb->cpu.A, 3);
     gb_add_clocks(gb, 8);
 }
 void BIT_4_B(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->B, 4);
+    BIT_r(gb, &gb->cpu.B, 4);
     gb_add_clocks(gb, 8);
 }
 void BIT_4_C(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->C, 4);
+    BIT_r(gb, &gb->cpu.C, 4);
     gb_add_clocks(gb, 8);
 }
 void BIT_4_D(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->D, 4);
+    BIT_r(gb, &gb->cpu.D, 4);
     gb_add_clocks(gb, 8);
 }
 void BIT_4_E(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->E, 4);
+    BIT_r(gb, &gb->cpu.E, 4);
     gb_add_clocks(gb, 8);
 }
 void BIT_4_H(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->H, 4);
+    BIT_r(gb, &gb->cpu.H, 4);
     gb_add_clocks(gb, 8);
 }
 void BIT_4_L(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->L, 4);
+    BIT_r(gb, &gb->cpu.L, 4);
     gb_add_clocks(gb, 8);
 }
 void BIT_4_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    _BIT(gb, mem_read_u8(gb, gb->cpu->HL), 4);
+    _BIT(gb, mem_read_u8(gb, gb->cpu.HL), 4);
 }
 void BIT_4_A(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->A, 4);
+    BIT_r(gb, &gb->cpu.A, 4);
     gb_add_clocks(gb, 8);
 }
 void BIT_5_B(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->B, 5);
+    BIT_r(gb, &gb->cpu.B, 5);
     gb_add_clocks(gb, 8);
 }
 void BIT_5_C(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->C, 5);
+    BIT_r(gb, &gb->cpu.C, 5);
     gb_add_clocks(gb, 8);
 }
 void BIT_5_D(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->D, 5);
+    BIT_r(gb, &gb->cpu.D, 5);
     gb_add_clocks(gb, 8);
 }
 void BIT_5_E(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->E, 5);
+    BIT_r(gb, &gb->cpu.E, 5);
     gb_add_clocks(gb, 8);
 }
 void BIT_5_H(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->H, 5);
+    BIT_r(gb, &gb->cpu.H, 5);
     gb_add_clocks(gb, 8);
 }
 void BIT_5_L(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->L, 5);
+    BIT_r(gb, &gb->cpu.L, 5);
     gb_add_clocks(gb, 8);
 }
 void BIT_5_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    _BIT(gb, mem_read_u8(gb, gb->cpu->HL), 5);
+    _BIT(gb, mem_read_u8(gb, gb->cpu.HL), 5);
 }
 void BIT_5_A(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->A, 5);
+    BIT_r(gb, &gb->cpu.A, 5);
     gb_add_clocks(gb, 8);
 }
 void BIT_6_B(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->B, 6);
+    BIT_r(gb, &gb->cpu.B, 6);
     gb_add_clocks(gb, 8);
 }
 void BIT_6_C(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->C, 6);
+    BIT_r(gb, &gb->cpu.C, 6);
     gb_add_clocks(gb, 8);
 }
 void BIT_6_D(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->D, 6);
+    BIT_r(gb, &gb->cpu.D, 6);
     gb_add_clocks(gb, 8);
 }
 void BIT_6_E(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->E, 6);
+    BIT_r(gb, &gb->cpu.E, 6);
     gb_add_clocks(gb, 8);
 }
 void BIT_6_H(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->H, 6);
+    BIT_r(gb, &gb->cpu.H, 6);
     gb_add_clocks(gb, 8);
 }
 void BIT_6_L(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->L, 6);
+    BIT_r(gb, &gb->cpu.L, 6);
     gb_add_clocks(gb, 8);
 }
 void BIT_6_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    _BIT(gb, mem_read_u8(gb, gb->cpu->HL), 6);
+    _BIT(gb, mem_read_u8(gb, gb->cpu.HL), 6);
 }
 void BIT_6_A(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->A, 6);
+    BIT_r(gb, &gb->cpu.A, 6);
     gb_add_clocks(gb, 8);
 }
 void BIT_7_B(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->B, 7);
+    BIT_r(gb, &gb->cpu.B, 7);
     gb_add_clocks(gb, 8);
 }
 void BIT_7_C(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->C, 7);
+    BIT_r(gb, &gb->cpu.C, 7);
     gb_add_clocks(gb, 8);
 }
 void BIT_7_D(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->D, 7);
+    BIT_r(gb, &gb->cpu.D, 7);
     gb_add_clocks(gb, 8);
 }
 void BIT_7_E(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->E, 7);
+    BIT_r(gb, &gb->cpu.E, 7);
     gb_add_clocks(gb, 8);
 }
 void BIT_7_H(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->H, 7);
+    BIT_r(gb, &gb->cpu.H, 7);
     gb_add_clocks(gb, 8);
 }
 void BIT_7_L(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->L, 7);
+    BIT_r(gb, &gb->cpu.L, 7);
     gb_add_clocks(gb, 8);
 }
 void BIT_7_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    _BIT(gb, mem_read_u8(gb, gb->cpu->HL), 7);
+    _BIT(gb, mem_read_u8(gb, gb->cpu.HL), 7);
 }
 void BIT_7_A(struct gameboy *gb, struct op *op) {
-    BIT_r(gb, &gb->cpu->A, 7);
+    BIT_r(gb, &gb->cpu.A, 7);
     gb_add_clocks(gb, 8);
 }
 
@@ -2807,282 +2807,282 @@ void RES_r(struct gameboy *gb, uint8_t *r1, uint8_t bit) {
     *r1 &= ~(0x1 << bit);
 }
 void RES_0_B(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->B, 0);
+    RES_r(gb, &gb->cpu.B, 0);
     gb_add_clocks(gb, 8);
 }
 void RES_0_C(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->C, 0);
+    RES_r(gb, &gb->cpu.C, 0);
     gb_add_clocks(gb, 8);
 }
 void RES_0_D(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->D, 0);
+    RES_r(gb, &gb->cpu.D, 0);
     gb_add_clocks(gb, 8);
 }
 void RES_0_E(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->E, 0);
+    RES_r(gb, &gb->cpu.E, 0);
     gb_add_clocks(gb, 8);
 }
 void RES_0_H(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->H, 0);
+    RES_r(gb, &gb->cpu.H, 0);
     gb_add_clocks(gb, 8);
 }
 void RES_0_L(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->L, 0);
+    RES_r(gb, &gb->cpu.L, 0);
     gb_add_clocks(gb, 8);
 }
 void RES_0_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RES_r(gb, &val, 0);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RES_0_A(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->A, 0);
+    RES_r(gb, &gb->cpu.A, 0);
     gb_add_clocks(gb, 8);
 }
 void RES_1_B(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->B, 1);
+    RES_r(gb, &gb->cpu.B, 1);
     gb_add_clocks(gb, 8);
 }
 void RES_1_C(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->C, 1);
+    RES_r(gb, &gb->cpu.C, 1);
     gb_add_clocks(gb, 8);
 }
 void RES_1_D(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->D, 1);
+    RES_r(gb, &gb->cpu.D, 1);
     gb_add_clocks(gb, 8);
 }
 void RES_1_E(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->E, 1);
+    RES_r(gb, &gb->cpu.E, 1);
     gb_add_clocks(gb, 8);
 }
 void RES_1_H(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->H, 1);
+    RES_r(gb, &gb->cpu.H, 1);
     gb_add_clocks(gb, 8);
 }
 void RES_1_L(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->L, 1);
+    RES_r(gb, &gb->cpu.L, 1);
     gb_add_clocks(gb, 8);
 }
 void RES_1_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RES_r(gb, &val, 1);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RES_1_A(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->A, 1);
+    RES_r(gb, &gb->cpu.A, 1);
     gb_add_clocks(gb, 8);
 }
 void RES_2_B(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->B, 2);
+    RES_r(gb, &gb->cpu.B, 2);
     gb_add_clocks(gb, 8);
 }
 void RES_2_C(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->C, 2);
+    RES_r(gb, &gb->cpu.C, 2);
     gb_add_clocks(gb, 8);
 }
 void RES_2_D(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->D, 2);
+    RES_r(gb, &gb->cpu.D, 2);
     gb_add_clocks(gb, 8);
 }
 void RES_2_E(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->E, 2);
+    RES_r(gb, &gb->cpu.E, 2);
     gb_add_clocks(gb, 8);
 }
 void RES_2_H(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->H, 2);
+    RES_r(gb, &gb->cpu.H, 2);
     gb_add_clocks(gb, 8);
 }
 void RES_2_L(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->L, 2);
+    RES_r(gb, &gb->cpu.L, 2);
     gb_add_clocks(gb, 8);
 }
 void RES_2_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RES_r(gb, &val, 2);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RES_2_A(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->A, 2);
+    RES_r(gb, &gb->cpu.A, 2);
     gb_add_clocks(gb, 8);
 }
 void RES_3_B(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->B, 3);
+    RES_r(gb, &gb->cpu.B, 3);
     gb_add_clocks(gb, 8);
 }
 void RES_3_C(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->C, 3);
+    RES_r(gb, &gb->cpu.C, 3);
     gb_add_clocks(gb, 8);
 }
 void RES_3_D(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->D, 3);
+    RES_r(gb, &gb->cpu.D, 3);
     gb_add_clocks(gb, 8);
 }
 void RES_3_E(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->E, 3);
+    RES_r(gb, &gb->cpu.E, 3);
     gb_add_clocks(gb, 8);
 }
 void RES_3_H(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->H, 3);
+    RES_r(gb, &gb->cpu.H, 3);
     gb_add_clocks(gb, 8);
 }
 void RES_3_L(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->L, 3);
+    RES_r(gb, &gb->cpu.L, 3);
     gb_add_clocks(gb, 8);
 }
 void RES_3_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RES_r(gb, &val, 3);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RES_3_A(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->A, 3);
+    RES_r(gb, &gb->cpu.A, 3);
     gb_add_clocks(gb, 8);
 }
 void RES_4_B(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->B, 4);
+    RES_r(gb, &gb->cpu.B, 4);
     gb_add_clocks(gb, 8);
 }
 void RES_4_C(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->C, 4);
+    RES_r(gb, &gb->cpu.C, 4);
     gb_add_clocks(gb, 8);
 }
 void RES_4_D(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->D, 4);
+    RES_r(gb, &gb->cpu.D, 4);
     gb_add_clocks(gb, 8);
 }
 void RES_4_E(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->E, 4);
+    RES_r(gb, &gb->cpu.E, 4);
     gb_add_clocks(gb, 8);
 }
 void RES_4_H(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->H, 4);
+    RES_r(gb, &gb->cpu.H, 4);
     gb_add_clocks(gb, 8);
 }
 void RES_4_L(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->L, 4);
+    RES_r(gb, &gb->cpu.L, 4);
     gb_add_clocks(gb, 8);
 }
 void RES_4_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RES_r(gb, &val, 4);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RES_4_A(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->A, 4);
+    RES_r(gb, &gb->cpu.A, 4);
     gb_add_clocks(gb, 8);
 }
 void RES_5_B(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->B, 5);
+    RES_r(gb, &gb->cpu.B, 5);
     gb_add_clocks(gb, 8);
 }
 void RES_5_C(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->C, 5);
+    RES_r(gb, &gb->cpu.C, 5);
     gb_add_clocks(gb, 8);
 }
 void RES_5_D(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->D, 5);
+    RES_r(gb, &gb->cpu.D, 5);
     gb_add_clocks(gb, 8);
 }
 void RES_5_E(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->E, 5);
+    RES_r(gb, &gb->cpu.E, 5);
     gb_add_clocks(gb, 8);
 }
 void RES_5_H(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->H, 5);
+    RES_r(gb, &gb->cpu.H, 5);
     gb_add_clocks(gb, 8);
 }
 void RES_5_L(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->L, 5);
+    RES_r(gb, &gb->cpu.L, 5);
     gb_add_clocks(gb, 8);
 }
 void RES_5_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RES_r(gb, &val, 5);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RES_5_A(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->A, 5);
+    RES_r(gb, &gb->cpu.A, 5);
     gb_add_clocks(gb, 8);
 }
 void RES_6_B(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->B, 6);
+    RES_r(gb, &gb->cpu.B, 6);
     gb_add_clocks(gb, 8);
 }
 void RES_6_C(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->C, 6);
+    RES_r(gb, &gb->cpu.C, 6);
     gb_add_clocks(gb, 8);
 }
 void RES_6_D(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->D, 6);
+    RES_r(gb, &gb->cpu.D, 6);
     gb_add_clocks(gb, 8);
 }
 void RES_6_E(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->E, 6);
+    RES_r(gb, &gb->cpu.E, 6);
     gb_add_clocks(gb, 8);
 }
 void RES_6_H(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->H, 6);
+    RES_r(gb, &gb->cpu.H, 6);
     gb_add_clocks(gb, 8);
 }
 void RES_6_L(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->L, 6);
+    RES_r(gb, &gb->cpu.L, 6);
     gb_add_clocks(gb, 8);
 }
 void RES_6_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RES_r(gb, &val, 6);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RES_6_A(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->A, 6);
+    RES_r(gb, &gb->cpu.A, 6);
     gb_add_clocks(gb, 8);
 }
 void RES_7_B(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->B, 7);
+    RES_r(gb, &gb->cpu.B, 7);
     gb_add_clocks(gb, 8);
 }
 void RES_7_C(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->C, 7);
+    RES_r(gb, &gb->cpu.C, 7);
     gb_add_clocks(gb, 8);
 }
 void RES_7_D(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->D, 7);
+    RES_r(gb, &gb->cpu.D, 7);
     gb_add_clocks(gb, 8);
 }
 void RES_7_E(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->E, 7);
+    RES_r(gb, &gb->cpu.E, 7);
     gb_add_clocks(gb, 8);
 }
 void RES_7_H(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->H, 7);
+    RES_r(gb, &gb->cpu.H, 7);
     gb_add_clocks(gb, 8);
 }
 void RES_7_L(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->L, 7);
+    RES_r(gb, &gb->cpu.L, 7);
     gb_add_clocks(gb, 8);
 }
 void RES_7_HLa(struct gameboy *gb, struct op *op) {
     gb_add_clocks(gb, 12);
-    uint8_t val = mem_read_u8(gb, gb->cpu->HL);
+    uint8_t val = mem_read_u8(gb, gb->cpu.HL);
     gb_add_clocks(gb, 4);
     RES_r(gb, &val, 7);
-    mem_write_u8(gb, gb->cpu->HL, val);
+    mem_write_u8(gb, gb->cpu.HL, val);
 }
 void RES_7_A(struct gameboy *gb, struct op *op) {
-    RES_r(gb, &gb->cpu->A, 7);
+    RES_r(gb, &gb->cpu.A, 7);
     gb_add_clocks(gb, 8);
 }
