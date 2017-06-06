@@ -399,6 +399,9 @@ struct gameboy {
     /* I/O Ports */
     uint8_t regs[0x80];
 
+    /* Joypad state */
+    uint8_t joypad;
+
     /* Interrupt master enable flag */
     uint8_t ime;
     uint8_t ime_delay;
@@ -415,8 +418,6 @@ struct gameboy {
     int serial;
     int oscillator_stopped;
     int clock_stopped;
-
-    struct joypad *joypad;
     
     /* Clock counters */
     uint32_t clocks_lcd;
@@ -430,10 +431,6 @@ struct gameboy {
     /* Callback function pointers */
     vbl_func_ptr vbl_callback;
     
-};
-
-struct joypad {
-    uint8_t state;
 };
 
 void sdl_init(struct gameboy *gb, const char *rom_file);

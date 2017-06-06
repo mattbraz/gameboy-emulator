@@ -82,9 +82,9 @@ uint8_t mem_read_u8(struct gameboy *gb, uint16_t addr) {
     /* Joypad */
     if (addr == P1) {
         if (gb->mem[addr] & (0x1 << 4)) /* Buttons */
-            return (gb->mem[addr] & 0xF0) | ((gb->joypad->state >> 0) & 0x0F);
+            return (gb->mem[addr] & 0xF0) | ((gb->joypad >> 0) & 0x0F);
         if (gb->mem[addr] & (0x1 << 5)) /* D-Pad */
-            return (gb->mem[addr] & 0xF0) | ((gb->joypad->state >> 4) & 0x0F);
+            return (gb->mem[addr] & 0xF0) | ((gb->joypad >> 4) & 0x0F);
         return 0x00;
     }
 

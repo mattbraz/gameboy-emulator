@@ -212,7 +212,7 @@ void gb_process_interrupts(struct gameboy *gb) {
 }
 
 void gb_process_joypad(struct gameboy *gb) {
-    if (gb->joypad->state != 0xFF) {
+    if (gb->joypad != 0xFF) {
         //uint8_t flag = mem_read_u8(gb, IF);
         //mem_write_u8(gb, IF, flag | (0x1 << 4));
         //gb_raise_irq(gb, IRQ_JOYP);
@@ -220,12 +220,12 @@ void gb_process_joypad(struct gameboy *gb) {
 }
 
 void gb_joypad_press(struct gameboy *gb, uint8_t button) {
-    gb->joypad->state &= ~button;
+    gb->joypad &= ~button;
     gb_raise_irq(gb, IRQ_JOYP);
 }
 
 void gb_joypad_release(struct gameboy *gb, uint8_t button) {
-    gb->joypad->state |= button;
+    gb->joypad |= button;
 }
 
 struct gameboy *gb_create() {
@@ -241,55 +241,15 @@ struct gameboy *gb_create() {
 
 
 void *gb_init(struct gameboy *gb) {
-    // gb->cpu = malloc(sizeof(struct cpu));
-    // if(gb->cpu == NULL) {
-    //     printf("Failed to allocate memory for cpu\n");
-    // }
-    // gb->gpu = malloc(sizeof(struct gpu));
-    // if(gb->gpu == NULL) {
-    //     printf("Failed to allocate memory for gpu\n");
-    // }
-    // gb->apu = malloc(sizeof(struct apu));
-    // if(gb->apu == NULL) {
-    //     printf("Failed to allocate memory for apu\n");
-    // }
-    //gb->apu.channel_1 = malloc(sizeof(struct channel));
-    // gb->apu.channel_2 = malloc(sizeof(struct channel));
-    // gb->apu.channel_3 = malloc(sizeof(struct channel));
-    // gb->apu.channel_4 = malloc(sizeof(struct channel));
-
     gb->mem = malloc(0x10000);
     if(gb->mem == NULL) {
         printf("Failed to allocate memory for mem\n");
     }
-//    gb->cart = malloc(0x200000);
-//    if(gb->cart == NULL) {
-//        printf("Failed to allocate memory for cart rom\n");
-//    }
-//    gb->cart_ram = malloc(0x8000);
-//    if(gb->cart_ram == NULL) {
-//        printf("Failed to allocate memory for cart ram\n");
-//    }
-    gb->joypad = malloc(sizeof(struct joypad));
-    if(gb->joypad == NULL) {
-        printf("Failed to allocate memory for joypad\n");
-    }
-    
     return gb;
 }
 
 void gb_free(struct gameboy *gb) {
-    //free(gb->cpu);
-    //free(gb->gpu);
-    // free(gb->apu.channel_1);
-    // free(gb->apu.channel_2);
-    // free(gb->apu.channel_3);
-    // free(gb->apu.channel_4);
-    // free(gb->apu);
     free(gb->mem);
-    //free(gb->cart);
-    //free(gb->cart_ram);
-    free(gb->joypad);
     free(gb);
 }
 
@@ -351,7 +311,7 @@ void gb_reset(struct gameboy *gb) {
 //        gb->mem[daddr++] = gb->cart_rom[saddr++];
 //    }
     
-    gb->joypad->state = 0xFF;
+    gb->joypad = 0xFF;
     
     /* GPU */
     gb->gpu.lx = 0;
@@ -534,7 +494,7 @@ void print_mem(struct gameboy *gb) {
     printf("AF: 0x%04X BC: 0x%04x DE: 0x%04x HL: 0x%04x (HL): 0x%02x", gb->cpu.AF, gb->cpu.BC, gb->cpu.DE, gb->cpu.HL, gb->mem[gb->cpu.HL]);
     printf("\tZNHC: %d%d%d%d", gb->cpu.flags.Z, gb->cpu.flags.N, gb->cpu.flags.H, gb->cpu.flags.C);
     
-    printf("\njoypad: %02x -> %02x\n", gb->joypad->state, mem_read_u8(gb, P1));
+    printf("\njoypad: %02x -> %02x\n", gb->joypad, mem_read_u8(gb, P1));
     
     printf("STAT: %02X\n", mem_read_u8(gb, STAT));
     printf("LCDC: %02X\n", mem_read_u8(gb, LCDC));
