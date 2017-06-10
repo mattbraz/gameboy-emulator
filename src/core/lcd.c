@@ -15,11 +15,15 @@
 #define CLOCKS_MODE_3		160 // cum. 252
 #define CLOCKS_MODE_0		204
 
-#define WHITE       0xFFE0F8D0
-#define LIGHT_GRAY  0xFF88C070
-#define DARK_GRAY   0xFF346856
-#define BLACK       0xFF081820
-#define TRANSPARENT 0x00000000
+/* 
+ * ABGR colors for the DMG. These values are compatible with SDL and GL pixel
+ * formats: GL_RGBA, SDL_PIXELFORMAT_ABGR8888
+ */
+
+#define WHITE       0xffd0f8e0
+#define LIGHT_GRAY  0xff70c088
+#define DARK_GRAY   0xff566834
+#define BLACK       0xff201808
 
 int ppu_frames = 0;
 
@@ -41,29 +45,19 @@ void lcd_set_stat_mode(struct gameboy *gb, uint8_t mode) {
     //mem_write_u8(gb, STAT, (stat & ~mode) | mode);
 }
 
+/* Copies and converts the color index buffer to the RGBA pixel buffer */
 void lcd_copy_buf(struct gameboy *gb) {
-    uint32_t *pixels = (uint32_t *) gb->gpu.pixel_buffer;
+    uint32_t rgba;
     for (int x = 0; x < SCREEN_WIDTH; x++) {
         for (int y = 0; y < SCREEN_HEIGHT; y++) {
-            int shade = gb->gpu.screen[x][y];
+            int shade = gb->gpu.screen[y][x];
             switch(shade) {
-                case 0:
-                    pixels[(y*SCREEN_WIDTH)+x] = WHITE;
-                    //pixels[x][y] = WHITE;
-                    break;
-                case 1:
-                    pixels[(y*SCREEN_WIDTH)+x] = LIGHT_GRAY;
-                    //pixels[x][y] = LIGHT_GRAY;
-                    break;
-                case 2:
-                    pixels[(y*SCREEN_WIDTH)+x] = DARK_GRAY;
-                    //pixels[x][y] = DARK_GRAY;
-                    break;
-                case 3:
-                    pixels[(y*SCREEN_WIDTH)+x] = BLACK;
-                    //pixels[x][y] = BLACK;
-                    break;
+                case 0: rgba = WHITE; break;
+                case 1: rgba = LIGHT_GRAY; break;
+                case 2: rgba = DARK_GRAY; break;
+                case 3: rgba = BLACK; break;
             }
+            gb->gpu.pixel_buffer[y][x] = rgba;
         }
     }
 }
@@ -85,7 +79,7 @@ void lcd_dmg_pixel(struct gameboy *gb, int lx) {
     }
 
     int ly = mem_read_u8(gb, LY);
-    gb->gpu.screen[lx][ly] = color;
+    gb->gpu.screen[ly][lx] = color;
     
 //    if (ly == 0 && lx == 0) {
 //        printf("x0y0 idx %d color %d bgdata %X\n", gb->gpu.bg_idx, color, gb->gpu.bg_data);

@@ -26,14 +26,13 @@ int callbacks_per_sec = 0;
 
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
-SDL_Surface *surface = NULL;
 SDL_Texture *texture = NULL;
 SDL_AudioSpec *hardware_spec = NULL;
 
 void sdl_init_video(struct gameboy *gb, const char *title) {
 
     window = SDL_CreateWindow(
-        "GAMEBOY",
+        "Game Boy",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
         SCREEN_WIDTH * 2,
@@ -45,19 +44,15 @@ void sdl_init_video(struct gameboy *gb, const char *title) {
         exit(1);
     }
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, 
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (renderer == NULL) {
         printf( "SDL Error: %s\n", SDL_GetError());
         exit(1);
     }
     
-    surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
-    if (surface == NULL) {
-        printf( "SDL Error: %s\n", SDL_GetError());
-        exit(1);
-    }
-    
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, 
+        SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
     if (texture == NULL) {
         printf( "SDL Error: %s\n", SDL_GetError());
         exit(1);
@@ -111,7 +106,6 @@ void sdl_destroy() {
     printf("Destroying SDL\n");
     free(hardware_spec);
     SDL_DestroyTexture(texture);
-    SDL_FreeSurface(surface);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

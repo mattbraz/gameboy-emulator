@@ -246,8 +246,8 @@ struct gpu {
     uint8_t obj_color;
     uint8_t obj_priority;
     /* Pixel data */
-    uint8_t screen[SCREEN_WIDTH][SCREEN_HEIGHT];
-    uint32_t pixel_buffer[SCREEN_WIDTH][SCREEN_HEIGHT];
+    uint8_t screen[SCREEN_HEIGHT][SCREEN_WIDTH];
+    uint32_t pixel_buffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 };
 
 struct channel {
