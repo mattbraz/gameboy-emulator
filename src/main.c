@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     struct gameboy *gb;
     gb = gb_create();
     gb_reset(gb);
-    if  (!read_rom(gb, file_path)) {
+    if  (!load_rom(gb, file_path)) {
         printf("Failed to run emulator\n");
         exit(1);
     }

@@ -55,14 +55,14 @@ int ram_size[] = { 0x0, 0x400, 0x2000, 0x8000 };
 
 static struct cart_type *get_rom_type_def(int idx);
 
-int read_rom(struct gameboy *gb, const char *file_path) {
+int load_rom(struct gameboy *gb, const char *file_path) {
     FILE *file;
     long file_size;
     
     file = fopen(file_path, "rb");
     if(file == NULL) {
         perror("Error");
-        exit(1);
+        return 0;
     }
     
     /* Get file size */
@@ -80,7 +80,7 @@ int read_rom(struct gameboy *gb, const char *file_path) {
     size_t n = fread(gb->cart_rom, file_size, 1, file);
     if (!n) {
         printf("Error: failed to read ROM file\n");
-        exit(1);
+        return 0;
     }
     fclose(file);
     

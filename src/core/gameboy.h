@@ -451,7 +451,7 @@ void gb_run_clocks(struct gameboy *gb, unsigned int clocks);
 void gb_run_ops(struct gameboy *gb, unsigned int ops);
 void gb_run_frames(struct gameboy *gb, unsigned int frames);
 
-int read_rom(struct gameboy *gb, const char *file_path);
+int load_rom(struct gameboy *gb, const char *file_path);
 
 struct gameboy *gb_create();
 void *gb_init(struct gameboy *gb);
