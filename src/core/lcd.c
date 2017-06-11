@@ -57,7 +57,10 @@ void lcd_copy_buf(struct gameboy *gb) {
                 case 2: rgba = DARK_GRAY; break;
                 case 3: rgba = BLACK; break;
             }
-            gb->gpu.pixel_buffer[y][x] = rgba;
+            if (gb->gpu.flip_pix_buf)
+                gb->gpu.pixel_buffer[(SCREEN_HEIGHT - 1) - y][x] = rgba;
+            else
+                gb->gpu.pixel_buffer[y][x] = rgba;
         }
     }
 }

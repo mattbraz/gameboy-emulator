@@ -248,6 +248,7 @@ struct gpu {
     /* Pixel data */
     uint8_t screen[SCREEN_HEIGHT][SCREEN_WIDTH];
     uint32_t pixel_buffer[SCREEN_HEIGHT][SCREEN_WIDTH];
+    int flip_pix_buf;
 };
 
 struct channel {
@@ -412,10 +413,12 @@ struct gameboy {
     uint8_t bank_mode;
     uint8_t ram_bank_enable;
 
-    uint8_t dma;
-    uint8_t serial;
-    uint8_t oscillator_stopped;
-    uint8_t clock_stopped;
+    /* Misc */
+    int boot;
+    int dma;
+    int serial;
+    int oscillator_stopped;
+    int clock_stopped;
     
     /* Clock counters */
     uint32_t clocks_lcd;
@@ -425,9 +428,6 @@ struct gameboy {
     uint32_t clocks_dma;
     uint32_t clocks_serial;
     int clocks_total;
-
-    /* Misc */
-    int boot;
 
     /* Callback function pointers */
     vbl_func_ptr vbl_callback;
@@ -441,23 +441,20 @@ void sdl_events(struct gameboy *gb);
 uint8_t *sdl_pixel_buffer();
 void sdl_init_audio(struct gameboy *gb);
 void sdl_init_video(struct gameboy *gb, const char *title);
-
 void sdl_video_callback(struct gameboy *gb);
 
 uint32_t *gb_pixel_buffer(struct gameboy *gb);
-
 void gb_set_vbl_callback(struct gameboy *gb, vbl_func_ptr vbl_callback);
 
-void gb_run_clocks(struct gameboy *gb, unsigned int clocks);
+// struct gameboy *gb_create();
+// void gb_free(struct gameboy *gb);
+
+void gb_alloc_mem(struct gameboy *gb);
+void gb_init(struct gameboy *gb, int cgb_mode, int flip_pix_buf);
+void gb_reset(struct gameboy *gb);
+int load_rom(struct gameboy *gb, const char *file_path);
 void gb_run_ops(struct gameboy *gb, unsigned int ops);
 void gb_run_frames(struct gameboy *gb, unsigned int frames);
-
-int load_rom(struct gameboy *gb, const char *file_path);
-
-struct gameboy *gb_create();
-void *gb_init(struct gameboy *gb);
-void gb_free(struct gameboy *gb);
-void gb_reset(struct gameboy *gb);
 void gb_main_new(struct gameboy *gb);
 void gb_once(struct gameboy *gb);
 void gb_add_clocks(struct gameboy *gb, int clocks);
@@ -470,7 +467,6 @@ void gb_process_timers(struct gameboy *gb, int clocks);
 void gb_process_interrupts(struct gameboy *gb);
 void gb_joypad_press(struct gameboy *gb, uint8_t button);
 void gb_joypad_release(struct gameboy *gb, uint8_t button);
-void gb_get_title(struct gameboy *gb, char title[16]);
 
 uint8_t mem_read_u8(struct gameboy *gb, uint16_t addr);
 uint8_t mem_read_regs_u8(struct gameboy *gb, uint16_t addr);

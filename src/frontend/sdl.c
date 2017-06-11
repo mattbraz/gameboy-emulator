@@ -195,7 +195,6 @@ void sdl_events(struct gameboy *gb) {
     while (SDL_PollEvent(&e) != 0) {
         if (e.type == SDL_QUIT) {
             sdl_destroy();
-            gb_free(gb);
             exit(0);
         } else if (e.type == SDL_KEYDOWN) {
             switch(e.key.keysym.sym) {
@@ -240,7 +239,6 @@ void sdl_events(struct gameboy *gb) {
                     break;
                 case SDLK_ESCAPE:
                     sdl_destroy();
-                    gb_free(gb);
                     exit(0);
                     break;
                     

@@ -41,17 +41,19 @@ int main(int argc, char **argv) {
     file_path = argv[1];
 
     /* Set up the core */
-    struct gameboy *gb;
-    gb = gb_create();
-    gb_reset(gb);
-    if  (!load_rom(gb, file_path)) {
+    struct gameboy gb;
+    gb_alloc_mem(&gb);
+    gb_init(&gb, 0, 0);
+    gb_reset(&gb);
+
+    if  (!load_rom(&gb, file_path)) {
         printf("Failed to run emulator\n");
         exit(1);
     }
 
     /* Initiate the front end */
-    sdl_init_video(gb, basename(file_path));
-    sdl_init_audio(gb);
+    sdl_init_video(&gb, basename(file_path));
+    sdl_init_audio(&gb);
 
     /* method #1 */
     // gb_set_vbl_callback(gb, sdl_video_callback);
@@ -60,11 +62,11 @@ int main(int argc, char **argv) {
     /* method #2 */
     while(1) {
         if (!paused)
-            gb_run_frames(gb, 1);
-        sdl_video_main(gb);
-        sdl_events(gb);
+            gb_run_frames(&gb, 1);
+        sdl_video_main(&gb);
+        sdl_events(&gb);
     }
-    
+
     return 0;
 }
 

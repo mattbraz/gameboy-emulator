@@ -228,31 +228,19 @@ void gb_joypad_release(struct gameboy *gb, uint8_t button) {
     gb->joypad |= button;
 }
 
-struct gameboy *gb_create() {
-    struct gameboy *gb;
-    gb = malloc(sizeof(struct gameboy));
-    if(gb == NULL) {
-        printf("Failed to allocate memory for gb\n");
-    }
-    gb_init(gb);
-    
-    return gb;
-}
-
-
-void *gb_init(struct gameboy *gb) {
+/* FIXME: Remove this once i get to the bottom of the mario 2 issue */
+void gb_alloc_mem(struct gameboy *gb) {
     gb->mem = malloc(0x10000);
     if(gb->mem == NULL) {
         printf("Failed to allocate memory for mem\n");
+        exit(1);
     }
-    return gb;
 }
 
-void gb_free(struct gameboy *gb) {
-    free(gb->mem);
-    free(gb);
+void gb_init(struct gameboy *gb, int cgb_mode, int flip_pix_buf) {
+    /* gb->cgb_mode = cgb_mode; */
+    gb->gpu.flip_pix_buf = flip_pix_buf;
 }
-
 
 void gb_reset(struct gameboy *gb) {
     int i;
