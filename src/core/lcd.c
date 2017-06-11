@@ -47,7 +47,7 @@ void lcd_set_stat_mode(struct gameboy *gb, uint8_t mode) {
 
 /* Copies and converts the color index buffer to the RGBA pixel buffer */
 void lcd_copy_buf(struct gameboy *gb) {
-    uint32_t rgba;
+    uint32_t rgba = 0;
     for (int x = 0; x < SCREEN_WIDTH; x++) {
         for (int y = 0; y < SCREEN_HEIGHT; y++) {
             int shade = gb->gpu.screen[y][x];
