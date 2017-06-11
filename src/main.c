@@ -4,7 +4,7 @@
 #include <libgen.h>
 #include "gameboy.h"
 
-struct gameboy gameboy;
+struct gameboy gb;
 
 extern int paused;
 
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
     file_path = argv[1];
 
     /* Set up the core */
-    struct gameboy gb;
+    //struct gameboy gb;
     gb_alloc_mem(&gb);
     gb_init(&gb, 0, 0);
     gb_reset(&gb);
