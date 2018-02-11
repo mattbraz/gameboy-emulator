@@ -14,7 +14,8 @@ A cross-platform Game Boy (DMG) emulator written in C.
 
 #### Screenshots
 
-<img src="https://mattbraz.github.io/image/oh-win7-336x326.png">
+<img src="https://mattbraz.github.io/image/oh-win7-336x326.png">&nbsp;
+<img src="https://mattbraz.github.io/image/megaman-linux-320x313.png" width="336" height="326">
 
 #### Keys
 
