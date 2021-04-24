@@ -15,7 +15,7 @@
 
 /* Windows apparently will not do > 100 callbacks per second.. */
 #define SAMPLES_PER_SEC         65536
-#define SAMPLES_PER_CALLBACK    1024
+#define SAMPLES_PER_CALLBACK    512
 
 #define SCREEN_WIDTH    160
 #define SCREEN_HEIGHT   144

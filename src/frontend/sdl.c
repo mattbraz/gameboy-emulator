@@ -27,7 +27,6 @@ int callbacks_per_sec = 0;
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 SDL_Texture *texture = NULL;
-SDL_AudioSpec *hardware_spec = NULL;
 
 void sdl_init_video(struct gameboy *gb, const char *title) {
 
@@ -66,45 +65,33 @@ void sdl_init_video(struct gameboy *gb, const char *title) {
 void sdl_init_audio(struct gameboy *gb) {
 
     /* Audio Setup */
-    SDL_AudioSpec *desired;
-    desired = (SDL_AudioSpec*) malloc(sizeof(SDL_AudioSpec));
-    hardware_spec = (SDL_AudioSpec*) malloc(sizeof(SDL_AudioSpec));
-    if(desired == NULL || hardware_spec == NULL) {
-        printf( "malloc error in AudioSpec\n");
-        exit(1);
-    }
+    SDL_AudioSpec spec;
+    spec.freq = SAMPLES_PER_SEC;
+    spec.format = AUDIO_U8;
+    spec.channels = 1;
+    spec.samples = SAMPLES_PER_CALLBACK;
+    spec.callback = sdl_audio_callback;
+    spec.userdata = gb;
 
-    desired->freq = SAMPLES_PER_SEC;
-    desired->format = AUDIO_U8;
-    desired->channels = 1;
-    desired->samples = SAMPLES_PER_CALLBACK;
-    desired->callback = sdl_audio_callback;
-    desired->userdata = gb;
-    
-    if (SDL_OpenAudio(desired, hardware_spec) < 0) {
+    if (SDL_OpenAudio(&spec, NULL) < 0) {
         fprintf(stderr, "Couldn't open SDL audio: %s\n", SDL_GetError());
         exit(1);
     }
-    free(desired);
-    desired = NULL;
 
-    printf("req: freq %d samples %d\n",SAMPLES_PER_SEC,SAMPLES_PER_CALLBACK);
-    printf("got: freq %d samples %d\n",hardware_spec->freq, hardware_spec->samples);
-
-    callbacks_per_sec = hardware_spec->freq / hardware_spec->samples;
+    callbacks_per_sec = spec.freq / spec.samples;
     clocks_per_call = DMG_MHZ / callbacks_per_sec;
-    clocks_per_sample = clocks_per_call / hardware_spec->samples;
+    clocks_per_sample = clocks_per_call / spec.samples;
     
-    printf("callbacks_per_sec %d\n",callbacks_per_sec);
-    printf("clocks_per_call %d\n",clocks_per_call);
-    printf("clocks_per_sample %d\n",clocks_per_sample);
+    printf("spec: freq %d samples %d\n", spec.freq, spec.samples);
+    printf("callbacks_per_sec %d\n", callbacks_per_sec);
+    printf("clocks_per_call %d\n", clocks_per_call);
+    printf("clocks_per_sample %d\n", clocks_per_sample);
 
     SDL_PauseAudio(0);
 }
 
 void sdl_destroy() {
     printf("Destroying SDL\n");
-    free(hardware_spec);
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
