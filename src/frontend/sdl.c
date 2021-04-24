@@ -18,7 +18,7 @@ static unsigned int sdl_frames = 0;
 static float fps = 0;
 static float pfps = 0;
 
-int chennel_enable = 0xF;
+int channel_enable = 0xF;
 
 int clocks_per_call = 0;
 int clocks_per_sample = 0;
@@ -161,10 +161,10 @@ void sdl_audio_callback(void *userdata, Uint8 *buf, int len) {
     uint8_t sample = 0;
     for(int i = 0; i < len; i++) {
         sample = 0;
-        if (chennel_enable & 0x1) sample += apu_buffer[0][i];
-        if (chennel_enable & 0x2) sample += apu_buffer[1][i];
-        if (chennel_enable & 0x4) sample += apu_buffer[2][i];
-        if (chennel_enable & 0x8) sample += apu_buffer[3][i];
+        if (channel_enable & 0x1) sample += apu_buffer[0][i];
+        if (channel_enable & 0x2) sample += apu_buffer[1][i];
+        if (channel_enable & 0x4) sample += apu_buffer[2][i];
+        if (channel_enable & 0x8) sample += apu_buffer[3][i];
         if (sample > 255) sample = 255;
         buf[i] = sample;
     }
@@ -186,16 +186,16 @@ void sdl_events(struct gameboy *gb) {
         } else if (e.type == SDL_KEYDOWN) {
             switch(e.key.keysym.sym) {
                 case SDLK_F1:
-                    chennel_enable ^= 0x1;
+                    channel_enable ^= 0x1;
                     break;
                 case SDLK_F2:
-                    chennel_enable ^= 0x2;
+                    channel_enable ^= 0x2;
                     break;
                 case SDLK_F3:
-                    chennel_enable ^= 0x4;
+                    channel_enable ^= 0x4;
                     break;
                 case SDLK_F4:
-                    chennel_enable ^= 0x8;
+                    channel_enable ^= 0x8;
                     break;
                     
                 case SDLK_1:
